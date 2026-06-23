@@ -1,0 +1,96 @@
+erDiagram
+    USER ||--o{ LISTING : "sells"
+    USER ||--o{ ORDER : "buys (buyerId)"
+    USER ||--o{ ORDER : "sells (sellerId)"
+    USER ||--o{ WALLET_TRANSACTION : "owns"
+    USER }o--o{ CONVERSATION : "participates"
+    USER ||--o{ MESSAGE : "sends"
+    LISTING ||--o{ ORDER : "ordered as"
+    LISTING ||--o{ CONVERSATION : "anchors"
+    ORDER ||--o{ WALLET_TRANSACTION : "referenced by"
+    CONVERSATION ||--o{ MESSAGE : "contains"
+
+    USER {
+        ObjectId _id PK
+        string name
+        string email UK
+        string passwordHash
+        string studentId
+        enum role "customer|seller|admin"
+        bool isVerified
+        bool isBanned
+        number walletBalance "PHP, default 500"
+        number reservedBalance "default 0"
+        date createdAt
+        date updatedAt
+    }
+
+    LISTING {
+        ObjectId _id PK
+        ObjectId sellerId FK "to User"
+        string title
+        string description
+        enum category "esp32|raspi|arduino"
+        number price "PHP, min 0"
+        enum condition "new|used"
+        number quantity "min 1"
+        enum status "pending|available|reserved|sold|rejected"
+        string_arr cloudinaryUrl
+        mixed specs
+        number viewCount
+        date createdAt
+        date updatedAt
+    }
+
+    ORDER {
+        ObjectId _id PK
+        ObjectId buyerId FK "to User"
+        ObjectId sellerId FK "to User"
+        ObjectId listingId FK "to Listing"
+        string titleSnapshot
+        string imageSnapshot
+        number quantity
+        number unitPrice
+        number amountReserved
+        enum status "awaiting_payment..completed|cancelled|disputed"
+        enum fulfillment "pickup|shipping"
+        date paymentVerifiedAt
+        array statusHistory "embedded status,at,note"
+        date createdAt
+        date updatedAt
+    }
+
+    WALLET_TRANSACTION {
+        ObjectId _id PK
+        ObjectId userId FK "to User"
+        enum type "top_up|reserve|release|debit|credit|refund|adjustment"
+        number amount "PHP, positive"
+        ObjectId referenceOrderId FK "to Order, nullable"
+        string description
+        number balanceBefore
+        number balanceAfter
+        date createdAt
+    }
+
+    CONVERSATION {
+        ObjectId _id PK
+        ObjectId_arr participants FK "to User (pair)"
+        ObjectId listingId FK "to Listing, nullable"
+        string listingTitle
+        string lastMessage
+        date lastMessageAt
+        ObjectId lastSenderId FK "to User"
+        map unread "userId to count"
+        date createdAt
+        date updatedAt
+    }
+
+    MESSAGE {
+        ObjectId _id PK
+        ObjectId conversationId FK "to Conversation"
+        ObjectId senderId FK "to User"
+        string body "max 2000"
+        date readAt
+        date createdAt
+        date updatedAt
+    }

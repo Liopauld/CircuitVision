@@ -1,0 +1,127 @@
+erDiagram
+    USER ||--o{ LISTING : "sells"
+    USER ||--o{ ORDER : "buys (buyerId)"
+    USER ||--o{ ORDER : "sells (sellerId)"
+    USER ||--o{ WALLET_TRANSACTION : "owns"
+    USER }o--o{ CONVERSATION : "participates"
+    USER ||--o{ MESSAGE : "sends"
+    USER ||--o{ AUTH_TOKEN : "has"
+    USER ||--o{ SCAN : "runs"
+    LISTING ||--o{ ORDER : "ordered as"
+    LISTING ||--o{ CONVERSATION : "anchors"
+    LISTING ||--o{ SCAN : "from"
+    ORDER ||--o{ WALLET_TRANSACTION : "referenced by"
+    ORDER ||--|| DISPUTE : "may raise"
+    USER ||--o{ DISPUTE : "files/handles"
+    DISPUTE ||--o{ DISPUTE_MESSAGE : "thread"
+    CONVERSATION ||--o{ MESSAGE : "contains"
+
+    USER {
+        ObjectId _id PK
+        string name
+        string email UK
+        string passwordHash
+        string studentId
+        enum role "customer|seller|admin"
+        bool isVerified "now via email flow"
+        bool isBanned
+        number walletBalance
+        number reservedBalance
+        date createdAt
+        date updatedAt
+    }
+
+    LISTING {
+        ObjectId _id PK
+        ObjectId sellerId FK "to User"
+        string title
+        enum category "esp32|raspi|arduino"
+        number price
+        enum status "pending|available|reserved|sold|rejected"
+        string_arr cloudinaryUrl
+        mixed specs
+        date createdAt
+    }
+
+    ORDER {
+        ObjectId _id PK
+        ObjectId buyerId FK "to User"
+        ObjectId sellerId FK "to User"
+        ObjectId listingId FK "to Listing"
+        number unitPrice
+        number amountReserved
+        enum status "awaiting_payment..disputed"
+        date createdAt
+    }
+
+    WALLET_TRANSACTION {
+        ObjectId _id PK
+        ObjectId userId FK "to User"
+        enum type "top_up|reserve|release|debit|credit|refund|adjustment"
+        number amount
+        ObjectId referenceOrderId FK "to Order, nullable"
+        number balanceBefore
+        number balanceAfter
+        date createdAt
+    }
+
+    CONVERSATION {
+        ObjectId _id PK
+        ObjectId_arr participants FK "to User"
+        ObjectId listingId FK "to Listing, nullable"
+        string lastMessage
+        date lastMessageAt
+        map unread
+        date createdAt
+    }
+
+    MESSAGE {
+        ObjectId _id PK
+        ObjectId conversationId FK "to Conversation"
+        ObjectId senderId FK "to User"
+        string body "max 2000"
+        date readAt
+        date createdAt
+    }
+
+    AUTH_TOKEN {
+        ObjectId _id PK
+        ObjectId userId FK "to User"
+        enum purpose "email_verify|password_reset"
+        string tokenHash
+        date expiresAt
+        date usedAt
+        date createdAt
+    }
+
+    SCAN {
+        ObjectId _id PK
+        ObjectId userId FK "to User"
+        ObjectId listingId FK "to Listing, nullable"
+        string imageUrl
+        enum detectedCategory "esp32|raspi|arduino"
+        number confidence
+        mixed roboflowRaw
+        date createdAt
+    }
+
+    DISPUTE {
+        ObjectId _id PK
+        ObjectId orderId FK "to Order"
+        ObjectId raisedBy FK "to User (buyer)"
+        ObjectId resolvedBy FK "to User (admin), nullable"
+        enum status "open|under_review|resolved|rejected"
+        enum resolution "refund|release|partial|none"
+        string reason
+        date resolvedAt
+        date createdAt
+        date updatedAt
+    }
+
+    DISPUTE_MESSAGE {
+        ObjectId _id PK
+        ObjectId disputeId FK "to Dispute"
+        ObjectId senderId FK "to User"
+        string body
+        date createdAt
+    }
