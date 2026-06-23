@@ -31,8 +31,12 @@ const TRANSITIONS = {
 
 function actorFor(order, user) {
   if (user.role === 'admin') return 'admin';
-  if (String(order.buyerId) === user.id) return 'buyer';
-  if (String(order.sellerId) === user.id) return 'seller';
+  // buyerId/sellerId may be raw ObjectIds (transitionOrder) or populated User
+  // subdocuments (getOrder); normalize to the id string before comparing.
+  const buyerId = order.buyerId?._id || order.buyerId;
+  const sellerId = order.sellerId?._id || order.sellerId;
+  if (String(buyerId) === user.id) return 'buyer';
+  if (String(sellerId) === user.id) return 'seller';
   return null;
 }
 

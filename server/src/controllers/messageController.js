@@ -4,9 +4,12 @@ import { Listing } from '../models/Listing.js';
 import { User } from '../models/User.js';
 import { ApiError } from '../middleware/errorHandler.js';
 
-// Ensures the requester is one of the conversation's participants.
+// Ensures the requester is one of the conversation's participants. Handles both
+// raw ObjectId participants and populated User subdocuments (`p._id`).
 function assertParticipant(conversation, userId) {
-  const isMember = conversation.participants.some((p) => String(p) === userId);
+  const isMember = conversation.participants.some(
+    (p) => String(p._id || p) === userId
+  );
   if (!isMember) throw new ApiError(403, 'You are not part of this conversation.');
 }
 
