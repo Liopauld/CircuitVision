@@ -1,7 +1,7 @@
 # CircuitVision — Feature Roadmap
 
 Living document of what's built, what's being built now, and what's queued.
-Last updated: 2026-06-23.
+Last updated: 2026-06-24.
 
 ---
 
@@ -13,6 +13,7 @@ Last updated: 2026-06-23.
 - **Wallet** — mock PHP balance, top-ups, `walletTransactions` log (reserve/release/debit/credit/refund/adjustment).
 - **Orders** — full lifecycle (place → pay → verify → prepare → ship → complete; + cancel/dispute) with wallet reserve/release/settle.
 - **Admin module** — moderation queue, ban/unban, wallet adjust, stats, all orders/transactions.
+- **Messaging** — 1:1 buyer/seller conversations (optionally anchored to a listing); Messages list + thread view, "Message seller/buyer" buttons on listing & order pages, unread badge in nav/tab bar with light polling.
 - **UI** — electronics-themed neon/circuit design, Framer Motion animations, mobile-first + Capacitor wrap config.
 - **Seed** — `npm run seed`; demo accounts password `Password123`.
 
@@ -22,20 +23,14 @@ Last updated: 2026-06-23.
 
 These close the biggest gaps that stop the app from supporting a real transaction.
 
-### 1. Buyer/seller messaging
-- **Models:** `Conversation` (two participants, optional listing ref) + `Message` (sender, body, readAt).
-- **API:** list conversations, open/create a conversation, send a message, fetch messages, mark read, unread count.
-- **Client:** Messages page (conversation list + thread), "Message seller" button on listing & order pages, unread badge in nav/tab bar.
-- **Why:** buyers ask questions before buying; pickup/shipping needs coordination.
-
-### 2. Email verification + password reset
+### 1. Email verification + password reset
 - **Approach:** token-based flow with a **mock mailer** — when no SMTP is configured the token/link is logged to the server console and returned in dev responses, mirroring the Cloudinary fallback pattern. A real mailer drops in later with zero call-site changes.
 - **User fields:** verification token + expiry; reset token + expiry.
 - **API:** request verification, verify, request password reset, reset with token.
 - **Client:** "verify your email" banner + verify page, forgot-password + reset pages.
 - **Why:** today any email string works and there's no account recovery.
 
-### 3. Dispute resolution UI
+### 2. Dispute resolution UI
 - **Backend:** admin-only resolve transitions out of the `disputed` state — **refund buyer** (release reserved → cancelled) or **release to seller** (settle → completed).
 - **Client:** admin "Disputes" tab with resolve actions; dispute reason + status surfaced on order detail.
 - **Why:** the `disputed` order state already exists but is a dead end — a buyer/seller can get stuck.

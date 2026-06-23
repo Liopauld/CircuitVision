@@ -72,6 +72,7 @@ Flow: `awaiting_payment → payment_submitted → payment_verified → preparing
 
 ## Status / gotchas
 
-- **Messaging backend exists but is not surfaced in the client.** `routes/message.routes.js`, `messageController.js`, and the `Conversation`/`Message` models are wired into the API, but there are no client routes/pages for it yet. (Project notes list messaging as "deferred" — the server stubs are ahead of the UI.)
+- **Mongoose populate + identity checks:** controllers that `.populate()` a ref (`buyerId`, `sellerId`, `participants`) must compare against `doc.ref?._id || doc.ref`, never `String(doc.ref)` — on a populated subdocument `String()` yields `"[object Object]"`, silently breaking ownership/participant checks (this caused 403s on `GET /orders/:id` and `GET /messages/conversations/:id`). See `actorFor` (orderController) and `assertParticipant` (messageController).
+- **Messaging is fully built (backend + client).** 1:1 conversations optionally anchored to a listing; `Messages` (list) and `Conversation` (thread) pages, "Message seller/buyer" buttons on listing/order detail, and an unread badge in the nav/tab bar backed by `context/MessagesContext.jsx` (light polling of `/messages/unread-count`).
 - Roles are chosen at signup (customer or seller); admins exist only via the seed script or promotion, never public signup. Sellers can also buy.
 - Deferred / not built: Roboflow component scanning, email verification & password recovery, dispute-resolution UI on top of the existing `disputed` order state.
