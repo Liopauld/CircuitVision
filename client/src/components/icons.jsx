@@ -43,6 +43,12 @@ export const IconShield = (p) => (
     <path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z" />
   </svg>
 );
+export const IconChat = (p) => (
+  <svg {...base} {...p}>
+    <path d="M4 5h16v11H8l-4 4z" />
+    <path d="M8 9.5h8M8 12.5h5" />
+  </svg>
+);
 export const IconChip = (p) => (
   <svg {...base} {...p}>
     <rect x="7" y="7" width="10" height="10" rx="1.5" />

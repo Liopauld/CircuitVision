@@ -41,6 +41,17 @@ export default function ListingDetail() {
     };
   }, [id]);
 
+  async function messageSeller() {
+    if (!user) return navigate('/login', { state: { from: `/listings/${id}` } });
+    setError('');
+    try {
+      const { data } = await api.post('/messages/conversations', { listingId: id });
+      navigate(`/messages/${data.conversationId}`);
+    } catch (err) {
+      setError(apiError(err));
+    }
+  }
+
   async function buy() {
     if (!user) return navigate('/login', { state: { from: `/listings/${id}` } });
     setBusy(true);
@@ -163,6 +174,16 @@ export default function ListingDetail() {
               ? 'Admins manage listings rather than purchase them.'
               : 'This item is not currently available.'}
           </p>
+        )}
+
+        {user && !isOwner && !isAdmin && listing.sellerId?._id && (
+          <button
+            className="btn ghost full"
+            onClick={messageSeller}
+            style={{ marginTop: '0.8rem' }}
+          >
+            💬 Message seller
+          </button>
         )}
       </div>
 

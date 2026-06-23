@@ -1,9 +1,11 @@
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useMessages } from '../context/MessagesContext.jsx';
 import { peso } from '../constants.js';
 
 export default function Navbar() {
   const { user, logout } = useAuth();
+  const { unread } = useMessages();
   const navigate = useNavigate();
 
   function handleLogout() {
@@ -26,6 +28,12 @@ export default function Navbar() {
         </NavLink>
         {canSell && <NavLink to="/create">Sell</NavLink>}
         {user && <NavLink to="/orders">Orders</NavLink>}
+        {user && (
+          <NavLink to="/messages" className="nav-msg">
+            Messages
+            {unread > 0 && <span className="nav-badge">{unread}</span>}
+          </NavLink>
+        )}
         {user && <NavLink to="/wallet">Wallet</NavLink>}
         {user?.role === 'admin' && <NavLink to="/admin">Admin</NavLink>}
 

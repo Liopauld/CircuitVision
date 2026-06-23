@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useMessages } from '../context/MessagesContext.jsx';
 import {
   IconBrowse,
   IconSell,
@@ -7,12 +8,14 @@ import {
   IconOrders,
   IconUser,
   IconShield,
+  IconChat,
 } from './icons.jsx';
 
 // App-style bottom navigation, shown only on small screens (and in the
 // Capacitor mobile build). Tabs adapt to the user's role.
 export default function TabBar() {
   const { user } = useAuth();
+  const { unread } = useMessages();
   const canSell = user && (user.role === 'seller' || user.role === 'admin');
 
   const tab = ({ isActive }) => (isActive ? 'tab active' : 'tab');
@@ -40,6 +43,15 @@ export default function TabBar() {
         <NavLink to="/orders" className={tab}>
           <IconOrders />
           Orders
+        </NavLink>
+      )}
+      {user && (
+        <NavLink to="/messages" className={tab}>
+          <span className="tab-icon-wrap">
+            <IconChat />
+            {unread > 0 && <span className="tab-badge">{unread}</span>}
+          </span>
+          Chat
         </NavLink>
       )}
       {user && (

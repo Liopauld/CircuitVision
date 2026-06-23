@@ -12,6 +12,8 @@ import Profile from './pages/Profile.jsx';
 import Wallet from './pages/Wallet.jsx';
 import Orders from './pages/Orders.jsx';
 import OrderDetail from './pages/OrderDetail.jsx';
+import Messages from './pages/Messages.jsx';
+import Conversation from './pages/Conversation.jsx';
 import Admin from './pages/Admin.jsx';
 import Login from './pages/Login.jsx';
 import Register from './pages/Register.jsx';
@@ -59,6 +61,14 @@ export default function App() {
             <Route
               path="/orders/:id"
               element={<ProtectedRoute>{wrap(<OrderDetail />)}</ProtectedRoute>}
+            />
+            <Route
+              path="/messages"
+              element={<ProtectedRoute>{wrap(<Messages />)}</ProtectedRoute>}
+            />
+            <Route
+              path="/messages/:id"
+              element={<ProtectedRoute>{wrap(<Conversation />)}</ProtectedRoute>}
             />
             <Route
               path="/profile"

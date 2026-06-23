@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api, apiError } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { peso, ORDER_LABELS, ORDER_STEPS, availableActions } from '../constants.js';
 
 export default function OrderDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { user, refreshUser } = useAuth();
   const [order, setOrder] = useState(null);
   const [error, setError] = useState('');
@@ -47,6 +48,21 @@ export default function OrderDetail() {
       setError(apiError(err));
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function messageOther() {
+    const otherId =
+      viewerRole === 'buyer' ? order.sellerId?._id : order.buyerId?._id;
+    if (!otherId) return;
+    try {
+      const { data } = await api.post('/messages/conversations', {
+        userId: otherId,
+        listingId: order.listingId,
+      });
+      navigate(`/messages/${data.conversationId}`);
+    } catch (err) {
+      setError(apiError(err));
     }
   }
 
@@ -116,6 +132,16 @@ export default function OrderDetail() {
             </button>
           ))}
         </div>
+      )}
+
+      {viewerRole !== 'admin' && (
+        <button
+          className="btn ghost full"
+          onClick={messageOther}
+          style={{ marginTop: '0.8rem' }}
+        >
+          💬 Message {viewerRole === 'buyer' ? 'seller' : 'buyer'}
+        </button>
       )}
 
       {/* History */}
