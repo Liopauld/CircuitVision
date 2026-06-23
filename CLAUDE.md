@@ -4,7 +4,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-CircuitVision is a student-focused marketplace for electronics components (ESP32 / Raspberry Pi / Arduino). It's a school project. Monorepo with two independent npm packages: `server/` (Express + Mongoose API, ES modules) and `client/` (Vite + React SPA, wrappable into iOS/Android via Capacitor). **Not a git repository.**
+CircuitVision is a student-focused marketplace for electronics components (ESP32 / Raspberry Pi / Arduino). It's a school project. Monorepo with two independent npm packages: `server/` (Express + Mongoose API, ES modules) and `client/` (Vite + React SPA, wrappable into iOS/Android via Capacitor). Tracked in git on the `main` branch, pushed to GitHub at `Liopauld/CircuitVision`.
+
+## Version control workflow — commit and push as you work
+
+This project is backed by GitHub specifically so no work is ever lost and any change can be reverted. As you complete a meaningful unit of work, **commit it and push to `origin/main`** — do not leave finished work sitting uncommitted.
+
+- After each logical change (a feature, fix, or refactor that leaves the tree in a working state), run `git add -A && git commit && git push`.
+- Write **clean, descriptive commit messages**: a concise imperative subject line (e.g. "Add buyer order cancellation"), and a body explaining the *why* when it isn't obvious. One commit per logical change — don't bundle unrelated edits.
+- Never commit secrets or generated files. `.env`, `node_modules/`, `dist/`, and `.claude/settings.local.json` are already in `.gitignore`; keep it that way.
+- The repo is **public** — never hardcode credentials in source.
+- To undo a change later, prefer `git revert <commit>` (keeps history) over destructive resets.
 
 ## Commands
 
