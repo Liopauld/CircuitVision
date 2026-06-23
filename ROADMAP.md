@@ -1,0 +1,73 @@
+# CircuitVision — Feature Roadmap
+
+Living document of what's built, what's being built now, and what's queued.
+Last updated: 2026-06-23.
+
+---
+
+## ✅ Done & verified (Phases 1–2)
+
+- **Auth** — register/login/me, JWT Bearer tokens.
+- **Roles** — customer / seller / admin (chosen at signup; sellers can also buy; admin seeded only).
+- **Listings** — create (multipart + Cloudinary), browse/search/filter, owner update.
+- **Wallet** — mock PHP balance, top-ups, `walletTransactions` log (reserve/release/debit/credit/refund/adjustment).
+- **Orders** — full lifecycle (place → pay → verify → prepare → ship → complete; + cancel/dispute) with wallet reserve/release/settle.
+- **Admin module** — moderation queue, ban/unban, wallet adjust, stats, all orders/transactions.
+- **UI** — electronics-themed neon/circuit design, Framer Motion animations, mobile-first + Capacitor wrap config.
+- **Seed** — `npm run seed`; demo accounts password `Password123`.
+
+---
+
+## 🚧 In progress — High priority (this iteration)
+
+These close the biggest gaps that stop the app from supporting a real transaction.
+
+### 1. Buyer/seller messaging
+- **Models:** `Conversation` (two participants, optional listing ref) + `Message` (sender, body, readAt).
+- **API:** list conversations, open/create a conversation, send a message, fetch messages, mark read, unread count.
+- **Client:** Messages page (conversation list + thread), "Message seller" button on listing & order pages, unread badge in nav/tab bar.
+- **Why:** buyers ask questions before buying; pickup/shipping needs coordination.
+
+### 2. Email verification + password reset
+- **Approach:** token-based flow with a **mock mailer** — when no SMTP is configured the token/link is logged to the server console and returned in dev responses, mirroring the Cloudinary fallback pattern. A real mailer drops in later with zero call-site changes.
+- **User fields:** verification token + expiry; reset token + expiry.
+- **API:** request verification, verify, request password reset, reset with token.
+- **Client:** "verify your email" banner + verify page, forgot-password + reset pages.
+- **Why:** today any email string works and there's no account recovery.
+
+### 3. Dispute resolution UI
+- **Backend:** admin-only resolve transitions out of the `disputed` state — **refund buyer** (release reserved → cancelled) or **release to seller** (settle → completed).
+- **Client:** admin "Disputes" tab with resolve actions; dispute reason + status surfaced on order detail.
+- **Why:** the `disputed` order state already exists but is a dead end — a buyer/seller can get stuck.
+
+---
+
+## 🔜 Queued — Medium priority
+
+- **Seller ratings / reviews** — after a `completed` order, buyer leaves 1–5 stars + comment; show seller average.
+- **In-app notifications** — "order verified", "new message", surfaced in nav.
+- **Listing expiry / repost** — auto-stale old available listings; one-click repost.
+
+## 🗂 Queued — Lower priority / operational
+
+- **Admin: promote customer → seller** (no DB editing).
+- **Pagination** on Browse and admin lists.
+- **Cloudinary image deletion** when a listing is removed.
+
+---
+
+## ⏸ Deferred — Roboflow component scanning
+
+**Status: pushed back — data gathering + model training in progress.**
+
+Auto-classify a photographed component into a category on the create-listing
+form. Deferred until the dataset is collected and a model is trained; the build
+steps are documented and ready to wire in when the model ID is available.
+
+**Plan when resumed:**
+1. Roboflow **Classification** project, classes: `esp32`, `raspi`, `arduino`, `sensor`, `display`, `module`, `unknown`.
+2. Collect 50–100 images/class (Shopee/Lazada listings, Roboflow Universe, own parts), label, train (Roboflow 3.0 fast).
+3. Server `POST /api/scan` → hosted inference → `{ suggestedCategory, confidence }`; `sensor/display/module/unknown` or low confidence ⇒ user picks manually.
+4. Client: auto-fill the category picker on image select in `CreateListing`.
+
+Server env (when ready): `ROBOFLOW_API_KEY`, `ROBOFLOW_MODEL_ID`.

@@ -1,0 +1,142 @@
+import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { api, apiError } from '../api/client.js';
+import { useAuth } from '../context/AuthContext.jsx';
+import { categoryLabel, peso, LISTING_STATUSES } from '../constants.js';
+
+export default function Profile() {
+  const { user } = useAuth();
+  const [listings, setListings] = useState([]);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  const canSell = user.role === 'seller' || user.role === 'admin';
+
+  const load = useCallback(async () => {
+    if (!canSell) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    try {
+      const { data } = await api.get('/listings/mine');
+      setListings(data.listings);
+    } catch (err) {
+      setError(apiError(err));
+    } finally {
+      setLoading(false);
+    }
+  }, [canSell]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  async function changeStatus(id, status) {
+    try {
+      await api.patch(`/listings/${id}`, { status });
+      setListings((prev) => prev.map((l) => (l._id === id ? { ...l, status } : l)));
+    } catch (err) {
+      setError(apiError(err));
+    }
+  }
+
+  return (
+    <div>
+      <div className="panel" style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+        <span className="avatar" style={{ width: 56, height: 56, fontSize: '1.4rem' }}>
+          {user.name.charAt(0).toUpperCase()}
+        </span>
+        <div style={{ flex: 1 }}>
+          <h1 style={{ margin: 0 }}>{user.name}</h1>
+          <p className="muted" style={{ margin: '0.2rem 0' }}>
+            {user.email} ·{' '}
+            <span className="status-tag status-available" style={{ textTransform: 'capitalize' }}>
+              {user.role}
+            </span>
+          </p>
+        </div>
+        <Link to="/wallet" className="btn ghost sm">
+          {peso(user.walletBalance)}
+        </Link>
+      </div>
+
+      {canSell ? (
+        <>
+          <div className="section-head">
+            <h2>My listings</h2>
+            <Link to="/create" className="btn sm">
+              + New
+            </Link>
+          </div>
+          {error && <p className="error">{error}</p>}
+          {loading ? (
+            <div className="spinner" />
+          ) : listings.length === 0 ? (
+            <div className="empty">
+              <div className="big-icon">📦</div>
+              <p className="muted">
+                No listings yet. <Link to="/create">Create your first</Link>.
+              </p>
+            </div>
+          ) : (
+            <div className="table-wrap">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th></th>
+                    <th>Title</th>
+                    <th>Category</th>
+                    <th>Price</th>
+                    <th>Status</th>
+                    <th>Views</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {listings.map((l) => (
+                    <tr key={l._id}>
+                      <td>
+                        <img
+                          className="thumb"
+                          src={l.cloudinaryUrl?.[0] || 'https://placehold.co/80x60/0b1120/22d3ee?text=—'}
+                          alt={l.title}
+                        />
+                      </td>
+                      <td>
+                        <Link to={`/listings/${l._id}`}>{l.title}</Link>
+                      </td>
+                      <td>{categoryLabel(l.category)}</td>
+                      <td className="mono">{peso(l.price)}</td>
+                      <td>
+                        <select
+                          value={l.status}
+                          onChange={(e) => changeStatus(l._id, e.target.value)}
+                          style={{ width: 'auto', marginTop: 0 }}
+                        >
+                          {LISTING_STATUSES.map((s) => (
+                            <option key={s} value={s}>
+                              {s}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="mono">{l.viewCount}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      ) : (
+        <div className="empty">
+          <div className="big-icon">🛍️</div>
+          <h2>You're a customer</h2>
+          <p className="muted">
+            Browse components and track purchases in <Link to="/orders">Orders</Link>.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}

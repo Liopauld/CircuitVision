@@ -1,0 +1,14 @@
+{
+  "appId": "ph.circuitvision.app",
+  "appName": "CircuitVision",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#070b14"
+    }
+  }
+}
