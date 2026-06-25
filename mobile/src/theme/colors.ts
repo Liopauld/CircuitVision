@@ -30,6 +30,31 @@ export const colors = {
 
 export const radius = { md: 14, sm: 9, pill: 999 } as const;
 
+// One spacing scale used everywhere so layouts stay consistent.
+export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 22, xxl: 32 } as const;
+
+// Soft elevation for raised surfaces (use the boxShadow style prop, not the
+// legacy RN shadow props — per the Expo UI guidelines).
+export const shadow = { boxShadow: '0 6px 18px rgba(0, 0, 0, 0.35)' } as const;
+
+// Status → accent colour, shared by listing + order status tags.
+export const statusColor: Record<string, string> = {
+  available: '#4cc38a',
+  reserved: '#e8b765',
+  pending: '#e8b765',
+  sold: '#8aa394',
+  rejected: '#8aa394',
+  // order lifecycle
+  awaiting_payment: '#e8b765',
+  payment_submitted: '#e8b765',
+  payment_verified: '#3fa7b8',
+  preparing: '#3fa7b8',
+  ready: '#3fa7b8',
+  completed: '#4cc38a',
+  cancelled: '#8aa394',
+  disputed: '#ff5c84',
+};
+
 // Monospace face for datasheet-style readouts (prices, designators).
 import { Platform } from 'react-native';
 export const mono = Platform.select({

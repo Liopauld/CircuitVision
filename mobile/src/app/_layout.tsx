@@ -46,6 +46,7 @@ function RootNavigator() {
       <Stack.Screen name="register" options={{ title: 'Create account' }} />
       <Stack.Screen name="listing/[id]" options={{ title: 'Listing' }} />
       <Stack.Screen name="order/[id]" options={{ title: 'Order' }} />
+      <Stack.Screen name="conversation/[id]" options={{ title: 'Conversation' }} />
     </Stack>
   );
 }

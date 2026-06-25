@@ -49,6 +49,15 @@ export default function ListingDetail() {
     }
   }
 
+  async function messageSeller() {
+    try {
+      const { data } = await api.post('/messages/conversations', { listingId: id });
+      router.push(`/conversation/${data.conversationId}`);
+    } catch (err) {
+      setError(apiError(err));
+    }
+  }
+
   if (!listing) return error ? <View style={{ padding: 20 }}><ErrorText>{error}</ErrorText></View> : <Loader />;
 
   const isOwner = user && listing.sellerId?._id === user.id;
@@ -149,6 +158,10 @@ export default function ListingDetail() {
                 ? 'Admins manage listings rather than purchase them.'
                 : 'This item is not currently available.'}
           </Text>
+        )}
+
+        {user && !isOwner && !isAdmin && listing.sellerId?._id && (
+          <Button title="💬 Message seller" variant="ghost" onPress={messageSeller} />
         )}
       </View>
     </ScrollView>

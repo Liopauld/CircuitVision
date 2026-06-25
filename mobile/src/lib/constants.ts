@@ -75,3 +75,15 @@ export function availableActions(
 export const DISPUTABLE_STATUSES = ['payment_verified', 'preparing', 'ready'];
 export const canDispute = (order: { status: string }) =>
   DISPUTABLE_STATUSES.includes(order.status);
+
+// ---- Wallet transaction display ----
+export const TX_META: Record<string, { sign: string; label: string }> = {
+  top_up: { sign: '+', label: 'Top-up' },
+  reserve: { sign: '−', label: 'Reserved' },
+  release: { sign: '+', label: 'Released' },
+  debit: { sign: '−', label: 'Payment' },
+  credit: { sign: '+', label: 'Sale' },
+  refund: { sign: '+', label: 'Refund' },
+  adjustment: { sign: '±', label: 'Adjustment' },
+};
+
