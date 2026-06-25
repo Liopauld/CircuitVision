@@ -2,24 +2,46 @@ import { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api, apiError } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
-import { peso, ORDER_LABELS, ORDER_STEPS, availableActions } from '../constants.js';
+import {
+  peso,
+  ORDER_LABELS,
+  ORDER_STEPS,
+  availableActions,
+  canDispute,
+  DISPUTE_STATUS_LABELS,
+  resolutionLabel,
+} from '../constants.js';
+import DisputeThread from '../components/DisputeThread.jsx';
 
 export default function OrderDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, refreshUser } = useAuth();
   const [order, setOrder] = useState(null);
+  const [dispute, setDispute] = useState(null);
+  const [disputeMsgs, setDisputeMsgs] = useState([]);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+
+  const loadDispute = useCallback(async () => {
+    try {
+      const { data } = await api.get(`/disputes/order/${id}`);
+      setDispute(data.dispute);
+      setDisputeMsgs(data.messages);
+    } catch {
+      // No dispute / not permitted — leave panel hidden.
+    }
+  }, [id]);
 
   const load = useCallback(async () => {
     try {
       const { data } = await api.get(`/orders/${id}`);
       setOrder(data.order);
+      if (data.order.status === 'disputed') await loadDispute();
     } catch (err) {
       setError(apiError(err));
     }
-  }, [id]);
+  }, [id, loadDispute]);
 
   useEffect(() => {
     load();
@@ -49,6 +71,28 @@ export default function OrderDetail() {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function raiseDispute() {
+    const reason = window.prompt(
+      'Describe the problem with this order (the seller and an admin will see this):'
+    );
+    if (!reason || !reason.trim()) return;
+    setBusy(true);
+    setError('');
+    try {
+      await api.post('/disputes', { orderId: id, reason: reason.trim() });
+      await load();
+    } catch (err) {
+      setError(apiError(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function sendDisputeMessage(body) {
+    const { data } = await api.post(`/disputes/${dispute._id}/messages`, { body });
+    setDisputeMsgs((prev) => [...prev, data.message]);
   }
 
   async function messageOther() {
@@ -142,6 +186,55 @@ export default function OrderDetail() {
         >
           💬 Message {viewerRole === 'buyer' ? 'seller' : 'buyer'}
         </button>
+      )}
+
+      {/* Raise dispute — buyer/seller, only while the order is eligible. */}
+      {viewerRole !== 'admin' && canDispute(order) && (
+        <button
+          className="btn ghost full danger"
+          onClick={raiseDispute}
+          disabled={busy}
+          style={{ marginTop: '0.8rem' }}
+        >
+          ⚠️ Raise a dispute
+        </button>
+      )}
+
+      {/* Dispute panel — shown once the order is disputed. */}
+      {order.status === 'disputed' && dispute && (
+        <div className="panel" style={{ marginTop: '1rem' }}>
+          <div className="section-head" style={{ marginTop: 0 }}>
+            <h2 style={{ fontSize: '1.05rem' }}>Dispute</h2>
+            <span
+              className={`status-tag ${
+                dispute.status === 'resolved'
+                  ? 'status-available'
+                  : dispute.status === 'rejected'
+                  ? 'status-rejected'
+                  : 'status-reserved'
+              }`}
+            >
+              {DISPUTE_STATUS_LABELS[dispute.status] || dispute.status}
+            </span>
+          </div>
+          <p className="muted small" style={{ marginTop: 0 }}>
+            Opened by {dispute.raisedBy?.name || 'a participant'}
+          </p>
+
+          {(dispute.status === 'resolved' || dispute.status === 'rejected') && (
+            <div className="callout" style={{ margin: '0.5rem 0' }}>
+              <strong>Outcome:</strong> {resolutionLabel(dispute.resolution)}
+              {dispute.refundAmount > 0 && ` · ${peso(dispute.refundAmount)} refunded`}
+            </div>
+          )}
+
+          <DisputeThread
+            messages={disputeMsgs}
+            selfId={user.id}
+            onSend={sendDisputeMessage}
+            disabled={dispute.status === 'resolved' || dispute.status === 'rejected'}
+          />
+        </div>
       )}
 
       {/* History */}

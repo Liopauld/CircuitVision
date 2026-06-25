@@ -7,6 +7,7 @@ import listingRoutes from './routes/listing.routes.js';
 import walletRoutes from './routes/wallet.routes.js';
 import orderRoutes from './routes/order.routes.js';
 import messageRoutes from './routes/message.routes.js';
+import disputeRoutes from './routes/dispute.routes.js';
 import adminRoutes from './routes/admin.routes.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 
@@ -25,6 +26,7 @@ export function createApp() {
   app.use('/api/wallet', walletRoutes);
   app.use('/api/orders', orderRoutes);
   app.use('/api/messages', messageRoutes);
+  app.use('/api/disputes', disputeRoutes);
   app.use('/api/admin', adminRoutes);
 
   app.use(notFound);

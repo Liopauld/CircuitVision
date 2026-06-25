@@ -34,6 +34,9 @@ const disputeSchema = new mongoose.Schema(
       index: true,
     },
     resolution: { type: String, enum: DISPUTE_RESOLUTIONS, default: 'none' },
+    // Amount refunded to the buyer when resolution is 'refund' (full) or
+    // 'partial'. Zero for 'release' / 'none'. Recorded for the audit trail.
+    refundAmount: { type: Number, default: 0, min: 0 },
     reason: { type: String, required: true, trim: true, maxlength: 2000 },
     resolvedAt: { type: Date, default: null },
   },

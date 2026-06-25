@@ -97,3 +97,34 @@ export async function settlePayment(buyer, seller, amount, referenceOrderId) {
     description: 'Sale proceeds',
   });
 }
+
+// Reverse a settled payment after a dispute resolution: claw `amount` back from
+// the seller and refund it to the buyer. By the time a dispute is raised the
+// payment has already settled (entering payment_verified), so the funds sit in
+// the seller's spendable balance. This is a mock wallet, so the seller may go
+// negative if they already spent the proceeds — that's intentional; an admin
+// can reconcile via a manual adjustment. Both legs are audited 1:1.
+export async function refundSettledPayment(seller, buyer, amount, referenceOrderId) {
+  // Seller: debit (bypasses applyBalanceChange's non-negative guard on purpose).
+  const sellerBefore = seller.walletBalance;
+  seller.walletBalance -= amount;
+  await seller.save();
+  await WalletTransaction.create({
+    userId: seller._id,
+    type: 'debit',
+    amount,
+    referenceOrderId,
+    description: 'Dispute refund — reversed sale proceeds',
+    balanceBefore: sellerBefore,
+    balanceAfter: seller.walletBalance,
+  });
+
+  // Buyer: refund to spendable balance.
+  await applyBalanceChange(buyer, {
+    type: 'refund',
+    amount,
+    delta: amount,
+    referenceOrderId,
+    description: 'Dispute refund',
+  });
+}

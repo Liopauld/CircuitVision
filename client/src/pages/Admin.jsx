@@ -1,8 +1,18 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, apiError } from '../api/client.js';
-import { categoryLabel, peso, ORDER_LABELS, TX_META } from '../constants.js';
+import { useAuth } from '../context/AuthContext.jsx';
+import {
+  categoryLabel,
+  peso,
+  ORDER_LABELS,
+  TX_META,
+  DISPUTE_STATUS_LABELS,
+  DISPUTE_RESOLUTIONS,
+  resolutionLabel,
+} from '../constants.js';
+import DisputeThread from '../components/DisputeThread.jsx';
 
-const TABS = ['Overview', 'Moderation', 'Users', 'Orders', 'Activity'];
+const TABS = ['Overview', 'Moderation', 'Users', 'Orders', 'Disputes', 'Activity'];
 
 export default function Admin() {
   const [tab, setTab] = useState('Overview');
@@ -24,6 +34,7 @@ export default function Admin() {
       {tab === 'Moderation' && <Moderation />}
       {tab === 'Users' && <Users />}
       {tab === 'Orders' && <AdminOrders />}
+      {tab === 'Disputes' && <Disputes />}
       {tab === 'Activity' && <Activity />}
     </div>
   );
@@ -210,6 +221,168 @@ function AdminOrders() {
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+function Disputes() {
+  const { data, error, reload } = useFetch('/disputes');
+  if (error) return <p className="error">{error}</p>;
+  if (!data) return <div className="spinner" />;
+  if (data.disputes.length === 0)
+    return (
+      <div className="empty">
+        <div className="big-icon">🤝</div>
+        <p className="muted">No disputes. Everyone's getting along.</p>
+      </div>
+    );
+  return (
+    <div className="order-list">
+      {data.disputes.map((d) => (
+        <DisputeCard key={d._id} dispute={d} onResolved={reload} />
+      ))}
+    </div>
+  );
+}
+
+function DisputeCard({ dispute, onResolved }) {
+  const { user } = useAuth();
+  const order = dispute.orderId || {};
+  const closed = dispute.status === 'resolved' || dispute.status === 'rejected';
+  const [open, setOpen] = useState(false);
+  const [messages, setMessages] = useState([]);
+  const [resolution, setResolution] = useState('refund');
+  const [refundAmount, setRefundAmount] = useState('');
+  const [note, setNote] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const loadThread = useCallback(async () => {
+    if (!order._id) return;
+    try {
+      const { data } = await api.get(`/disputes/order/${order._id}`);
+      setMessages(data.messages);
+    } catch (err) {
+      setError(apiError(err));
+    }
+  }, [order._id]);
+
+  function toggle() {
+    const next = !open;
+    setOpen(next);
+    if (next) loadThread();
+  }
+
+  async function sendMessage(body) {
+    const { data } = await api.post(`/disputes/${dispute._id}/messages`, { body });
+    setMessages((prev) => [...prev, data.message]);
+  }
+
+  async function resolve() {
+    setBusy(true);
+    setError('');
+    try {
+      await api.post(`/disputes/${dispute._id}/resolve`, {
+        resolution,
+        refundAmount: resolution === 'partial' ? Number(refundAmount) : undefined,
+        note: note.trim() || undefined,
+      });
+      onResolved();
+    } catch (err) {
+      setError(apiError(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="panel" style={{ display: 'block' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 600 }}>{order.titleSnapshot || 'Order'}</div>
+          <div className="muted small">
+            {order.buyerId?.name} → {order.sellerId?.name} ·{' '}
+            {peso(order.amountReserved)} · raised by {dispute.raisedBy?.name}
+          </div>
+        </div>
+        <span
+          className={`status-tag ${
+            dispute.status === 'resolved'
+              ? 'status-available'
+              : dispute.status === 'rejected'
+              ? 'status-rejected'
+              : 'status-reserved'
+          }`}
+        >
+          {DISPUTE_STATUS_LABELS[dispute.status] || dispute.status}
+        </span>
+        <button className="btn sm ghost" onClick={toggle}>
+          {open ? 'Hide' : 'Review'}
+        </button>
+      </div>
+
+      <p className="muted small" style={{ margin: '0.5rem 0 0' }}>
+        “{dispute.reason}”
+      </p>
+
+      {closed && (
+        <div className="callout" style={{ marginTop: '0.5rem' }}>
+          <strong>Outcome:</strong> {resolutionLabel(dispute.resolution)}
+          {dispute.refundAmount > 0 && ` · ${peso(dispute.refundAmount)} refunded`}
+        </div>
+      )}
+
+      {open && (
+        <div style={{ marginTop: '0.8rem' }}>
+          {error && <p className="error">{error}</p>}
+          <DisputeThread
+            messages={messages}
+            selfId={user.id}
+            onSend={sendMessage}
+            disabled={false}
+          />
+
+          {!closed && (
+            <div className="panel" style={{ display: 'block', marginTop: '0.8rem' }}>
+              <div style={{ fontWeight: 600, marginBottom: '0.5rem' }}>Resolve</div>
+              <select
+                value={resolution}
+                onChange={(e) => setResolution(e.target.value)}
+                style={{ width: '100%' }}
+              >
+                {DISPUTE_RESOLUTIONS.map((r) => (
+                  <option key={r.value} value={r.value}>
+                    {r.label}
+                  </option>
+                ))}
+              </select>
+              {resolution === 'partial' && (
+                <input
+                  type="number"
+                  value={refundAmount}
+                  onChange={(e) => setRefundAmount(e.target.value)}
+                  placeholder={`Refund amount (max ${order.amountReserved - 1})`}
+                  style={{ width: '100%', marginTop: '0.5rem' }}
+                />
+              )}
+              <input
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="Closing note (optional)"
+                style={{ width: '100%', marginTop: '0.5rem' }}
+              />
+              <button
+                className="btn full"
+                onClick={resolve}
+                disabled={busy}
+                style={{ marginTop: '0.6rem' }}
+              >
+                Apply resolution
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

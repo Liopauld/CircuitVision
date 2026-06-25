@@ -22,11 +22,8 @@ const TRANSITIONS = {
     by: ['buyer', 'seller', 'admin'],
     to: 'cancelled',
   },
-  dispute: {
-    from: ['payment_verified', 'preparing', 'ready'],
-    by: ['buyer', 'seller'],
-    to: 'disputed',
-  },
+  // Disputes are owned by disputeController (it also creates the Dispute record
+  // + thread), so the `disputed` status is not reachable from this table.
 };
 
 function actorFor(order, user) {

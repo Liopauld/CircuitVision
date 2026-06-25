@@ -45,6 +45,30 @@ export const ORDER_LABELS = {
   disputed: 'Disputed',
 };
 
+// Order statuses from which a buyer or seller may open a dispute.
+// Mirrors DISPUTABLE_STATUSES in the server disputeController.
+export const DISPUTABLE_STATUSES = ['payment_verified', 'preparing', 'ready'];
+
+export const canDispute = (order) => DISPUTABLE_STATUSES.includes(order.status);
+
+// ---- Dispute display (must match server Dispute model) ----
+export const DISPUTE_STATUS_LABELS = {
+  open: 'Open',
+  under_review: 'Under review',
+  resolved: 'Resolved',
+  rejected: 'Rejected',
+};
+
+export const DISPUTE_RESOLUTIONS = [
+  { value: 'refund', label: 'Full refund to buyer' },
+  { value: 'partial', label: 'Partial refund to buyer' },
+  { value: 'release', label: 'Release funds to seller' },
+  { value: 'none', label: 'Reject dispute (seller keeps funds)' },
+];
+
+export const resolutionLabel = (value) =>
+  DISPUTE_RESOLUTIONS.find((r) => r.value === value)?.label || value;
+
 // Which actions each party can take, given the current order status.
 // Mirrors the server transition table for UI affordances.
 export function availableActions(order, viewerRole) {
