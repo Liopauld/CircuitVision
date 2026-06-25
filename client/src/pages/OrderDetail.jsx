@@ -12,6 +12,7 @@ import {
   resolutionLabel,
 } from '../constants.js';
 import DisputeThread from '../components/DisputeThread.jsx';
+import Stars from '../components/Stars.jsx';
 
 export default function OrderDetail() {
   const { id } = useParams();
@@ -20,6 +21,9 @@ export default function OrderDetail() {
   const [order, setOrder] = useState(null);
   const [dispute, setDispute] = useState(null);
   const [disputeMsgs, setDisputeMsgs] = useState([]);
+  const [review, setReview] = useState(null);
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -38,6 +42,14 @@ export default function OrderDetail() {
       const { data } = await api.get(`/orders/${id}`);
       setOrder(data.order);
       if (data.order.status === 'disputed') await loadDispute();
+      if (data.order.status === 'completed') {
+        try {
+          const r = await api.get(`/reviews/order/${id}`);
+          setReview(r.data.review);
+        } catch {
+          /* ignore */
+        }
+      }
     } catch (err) {
       setError(apiError(err));
     }
@@ -93,6 +105,19 @@ export default function OrderDetail() {
   async function sendDisputeMessage(body) {
     const { data } = await api.post(`/disputes/${dispute._id}/messages`, { body });
     setDisputeMsgs((prev) => [...prev, data.message]);
+  }
+
+  async function submitReview() {
+    setBusy(true);
+    setError('');
+    try {
+      const { data } = await api.post('/reviews', { orderId: id, rating, comment });
+      setReview(data.review);
+    } catch (err) {
+      setError(apiError(err));
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function messageOther() {
@@ -234,6 +259,42 @@ export default function OrderDetail() {
             onSend={sendDisputeMessage}
             disabled={dispute.status === 'resolved' || dispute.status === 'rejected'}
           />
+        </div>
+      )}
+
+      {/* Review — buyer rates the seller after completion */}
+      {order.status === 'completed' && viewerRole === 'buyer' && (
+        <div className="panel" style={{ marginTop: '1rem' }}>
+          <h2 style={{ fontSize: '1.05rem', marginTop: 0 }}>
+            {review ? 'Your review' : 'Rate this seller'}
+          </h2>
+          {review ? (
+            <>
+              <Stars value={review.rating} />
+              {review.comment && (
+                <p className="muted" style={{ margin: '0.4rem 0 0' }}>{review.comment}</p>
+              )}
+            </>
+          ) : (
+            <>
+              <Stars value={rating} onChange={setRating} size="1.4rem" />
+              <textarea
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                placeholder="Share how the transaction went (optional)"
+                rows={3}
+                style={{ width: '100%', marginTop: '0.6rem' }}
+              />
+              <button
+                className="btn full"
+                onClick={submitReview}
+                disabled={busy}
+                style={{ marginTop: '0.6rem' }}
+              >
+                Submit review
+              </button>
+            </>
+          )}
         </div>
       )}
 

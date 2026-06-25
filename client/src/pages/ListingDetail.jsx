@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api, apiError } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import Reveal from '../components/Reveal.jsx';
+import Stars from '../components/Stars.jsx';
 import { categoryLabel, peso } from '../constants.js';
 
 const PLACEHOLDER = 'https://placehold.co/600x450/0a1a13/e8b765?text=No+Image';
@@ -17,6 +18,19 @@ export default function ListingDetail() {
   const [fulfillment, setFulfillment] = useState('pickup');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [reviews, setReviews] = useState({ average: 0, count: 0, list: [] });
+
+  // Seller's rating, fetched once we know who the seller is.
+  useEffect(() => {
+    const sid = listing?.sellerId?._id;
+    if (!sid) return;
+    api
+      .get(`/reviews/seller/${sid}`)
+      .then(({ data }) =>
+        setReviews({ average: data.average, count: data.count, list: data.reviews })
+      )
+      .catch(() => {});
+  }, [listing?.sellerId?._id]);
 
   useEffect(() => {
     let active = true;
@@ -104,6 +118,16 @@ export default function ListingDetail() {
           {listing.sellerId?.name && <> · Sold by {listing.sellerId.name}</>}
         </p>
 
+        {reviews.count > 0 && (
+          <p
+            className="muted"
+            style={{ marginTop: '0.3rem', display: 'flex', gap: '0.45rem', alignItems: 'center' }}
+          >
+            <Stars value={reviews.average} /> {reviews.average} ·{' '}
+            {reviews.count} review{reviews.count > 1 ? 's' : ''}
+          </p>
+        )}
+
         {listing.description && (
           <p className="description" style={{ marginTop: '1rem' }}>
             {listing.description}
@@ -187,6 +211,27 @@ export default function ListingDetail() {
           </button>
         )}
       </div>
+
+      {reviews.list.length > 0 && (
+        <div className="related">
+          <div className="section-head">
+            <h2>Seller reviews</h2>
+          </div>
+          {reviews.list.slice(0, 5).map((r) => (
+            <div className="panel" key={r._id} style={{ marginBottom: '0.6rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <strong>{r.buyerId?.name || 'Buyer'}</strong>
+                <Stars value={r.rating} />
+              </div>
+              {r.comment && (
+                <p className="muted small" style={{ margin: '0.3rem 0 0' }}>
+                  {r.comment}
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
 
       {related.length > 0 && (
         <Reveal as="div" className="related">
