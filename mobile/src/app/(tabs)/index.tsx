@@ -40,6 +40,7 @@ export default function Browse() {
       data={listings}
       keyExtractor={(l) => l._id}
       numColumns={2}
+      style={{ backgroundColor: colors.bg }}
       contentInsetAdjustmentBehavior="automatic"
       columnWrapperStyle={{ gap: 12, paddingHorizontal: 14 }}
       contentContainerStyle={{ gap: 12, paddingBottom: 24 }}
