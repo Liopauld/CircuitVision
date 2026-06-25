@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api, apiError } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import Reveal from '../components/Reveal.jsx';
 import { categoryLabel, peso } from '../constants.js';
 
 const PLACEHOLDER = 'https://placehold.co/600x450/0b1120/22d3ee?text=No+Image';
@@ -188,7 +189,7 @@ export default function ListingDetail() {
       </div>
 
       {related.length > 0 && (
-        <div className="related">
+        <Reveal as="div" className="related">
           <div className="section-head">
             <h2>More in {categoryLabel(listing.category)}</h2>
           </div>
@@ -197,7 +198,7 @@ export default function ListingDetail() {
               <ListingMini key={l._id} listing={l} index={i} />
             ))}
           </div>
-        </div>
+        </Reveal>
       )}
     </div>
   );
