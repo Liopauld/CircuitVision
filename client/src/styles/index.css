@@ -35,7 +35,14 @@
   --radius-sm: 10px;
   --glow-cyan: 0 0 24px rgba(34, 211, 238, 0.35);
   --glow-violet: 0 0 24px rgba(139, 92, 246, 0.35);
-  --font-mono: 'SF Mono', 'JetBrains Mono', ui-monospace, Menlo, monospace;
+
+  /* Type system — "datasheet / instrument panel":
+     display = squared techno face (silkscreen feel), body = humanist sans,
+     mono = datasheet readouts (prices, designators, specs). */
+  --font-display: 'Chakra Petch', 'Inter', system-ui, sans-serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', ui-monospace, Menlo, monospace;
 }
 
 * {
@@ -50,8 +57,7 @@ body,
 
 body {
   margin: 0;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-    sans-serif;
+  font-family: var(--font-body);
   color: var(--text);
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
@@ -100,8 +106,10 @@ a:hover {
 h1,
 h2,
 h3 {
-  letter-spacing: -0.02em;
-  line-height: 1.15;
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.12;
 }
 h1 {
   font-size: clamp(1.5rem, 4vw, 2.1rem);
@@ -170,10 +178,11 @@ h1 {
   display: flex;
   align-items: center;
   gap: 0.55rem;
-  font-weight: 800;
+  font-family: var(--font-display);
+  font-weight: 700;
   font-size: 1.18rem;
   color: var(--text);
-  letter-spacing: -0.03em;
+  letter-spacing: 0;
 }
 .brand .logo-dot {
   width: 12px;
@@ -418,7 +427,7 @@ label {
 }
 .hero h1 {
   font-size: clamp(1.9rem, 6vw, 3rem);
-  font-weight: 850;
+  font-weight: 700;
   margin: 0.2rem 0;
 }
 .hero .grad {
@@ -564,12 +573,16 @@ label {
 .status-sold, .status-rejected { color: var(--muted); background: rgba(133, 149, 180, 0.12); }
 
 .price {
-  font-weight: 800;
-  font-size: 1.05rem;
+  font-family: var(--font-mono);
+  font-feature-settings: 'tnum' 1;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: 1.02rem;
+  letter-spacing: -0.02em;
   color: var(--text);
 }
 .price.big {
-  font-size: 1.9rem;
+  font-size: 1.85rem;
   background: linear-gradient(90deg, var(--cyan), var(--violet));
   -webkit-background-clip: text;
   background-clip: text;
@@ -1119,4 +1132,31 @@ label {
   border: 1px solid var(--border-hi);
   background: var(--surface-hi);
   font-size: 0.9rem;
+}
+
+/* ===== Quality floor ===== */
+
+/* Visible keyboard focus on interactive elements (not on mouse click). */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Respect reduced-motion: kill the ambient grid drift, the pulsing logo dot,
+   and any incidental transitions/animations for users who opt out. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }
