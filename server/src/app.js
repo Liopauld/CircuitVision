@@ -14,7 +14,21 @@ import { errorHandler, notFound } from './middleware/errorHandler.js';
 export function createApp() {
   const app = express();
 
-  app.use(cors({ origin: env.clientOrigin, credentials: true }));
+  // Allow the configured origins plus any localhost / private-LAN dev origin
+  // (so the Expo web preview and devices on the LAN work). Requests with no
+  // Origin (native apps, curl) are always allowed.
+  const devOrigin = /^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)(:\d+)?$/;
+  app.use(
+    cors({
+      origin(origin, cb) {
+        if (!origin || env.clientOrigins.includes(origin) || devOrigin.test(origin)) {
+          return cb(null, true);
+        }
+        return cb(null, false);
+      },
+      credentials: true,
+    })
+  );
   app.use(express.json());
 
   app.get('/api/health', (req, res) => {
