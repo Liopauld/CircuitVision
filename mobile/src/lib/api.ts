@@ -1,25 +1,41 @@
 import axios from 'axios';
 import Constants from 'expo-constants';
-import * as SecureStore from 'expo-secure-store';
+import { getItem, setItem, deleteItem } from '@/lib/storage';
 
-// Point this at your machine's LAN IP for a real device, e.g.
-// EXPO_PUBLIC_API_URL=http://192.168.1.20:4000 — a phone can't reach localhost.
-const baseURL =
-  process.env.EXPO_PUBLIC_API_URL ||
-  (Constants.expoConfig?.extra as { apiUrl?: string })?.apiUrl ||
-  'http://localhost:4000';
+// Resolve the API origin. A real device can't reach the laptop's "localhost",
+// so we derive the dev machine's LAN IP from the Expo/Metro host URI (the same
+// IP that serves the JS bundle) and assume the API runs there on port 4000.
+// Override with EXPO_PUBLIC_API_URL when the API lives elsewhere.
+function resolveBaseUrl() {
+  if (process.env.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL;
+
+  const hostUri =
+    Constants.expoConfig?.hostUri ||
+    (Constants as any).expoGoConfig?.debuggerHost ||
+    (Constants as any).manifest2?.extra?.expoGo?.developer?.host ||
+    '';
+  const host = hostUri.split(':')[0];
+  if (host && host !== 'localhost' && host !== '127.0.0.1') {
+    return `http://${host}:4000`;
+  }
+
+  const extra = (Constants.expoConfig?.extra as { apiUrl?: string })?.apiUrl;
+  return extra || 'http://localhost:4000';
+}
+
+const baseURL = resolveBaseUrl();
 
 export const api = axios.create({ baseURL: `${baseURL}/api` });
 
 const TOKEN_KEY = 'cv_token';
 
 export async function getToken() {
-  return SecureStore.getItemAsync(TOKEN_KEY);
+  return getItem(TOKEN_KEY);
 }
 
 export async function setToken(token: string | null) {
-  if (token) await SecureStore.setItemAsync(TOKEN_KEY, token);
-  else await SecureStore.deleteItemAsync(TOKEN_KEY);
+  if (token) await setItem(TOKEN_KEY, token);
+  else await deleteItem(TOKEN_KEY);
 }
 
 // Attach the JWT to every request when present (token read is async on native).
