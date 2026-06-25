@@ -3,6 +3,7 @@ import { Message } from '../models/Message.js';
 import { Listing } from '../models/Listing.js';
 import { User } from '../models/User.js';
 import { ApiError } from '../middleware/errorHandler.js';
+import { notify } from '../services/notificationService.js';
 
 // Ensures the requester is one of the conversation's participants. Handles both
 // raw ObjectId participants and populated User subdocuments (`p._id`).
@@ -141,6 +142,13 @@ async function postToConversation(conversation, senderId, recipientId, body) {
   const current = conversation.unread.get(String(recipientId)) || 0;
   conversation.unread.set(String(recipientId), current + 1);
   await conversation.save();
+
+  await notify(
+    recipientId,
+    'message',
+    'You have a new message.',
+    `/messages/${conversation._id}`
+  );
   return message;
 }
 

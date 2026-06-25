@@ -1,11 +1,13 @@
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useMessages } from '../context/MessagesContext.jsx';
+import { useNotifications } from '../context/NotificationsContext.jsx';
 import { peso } from '../constants.js';
 
 export default function Navbar() {
   const { user, logout } = useAuth();
   const { unread } = useMessages();
+  const { unread: notifUnread } = useNotifications();
   const navigate = useNavigate();
 
   function handleLogout() {
@@ -35,6 +37,12 @@ export default function Navbar() {
           </NavLink>
         )}
         {user && <NavLink to="/wallet">Wallet</NavLink>}
+        {user && (
+          <NavLink to="/notifications" className="nav-msg">
+            Alerts
+            {notifUnread > 0 && <span className="nav-badge">{notifUnread}</span>}
+          </NavLink>
+        )}
         {user?.role === 'admin' && <NavLink to="/admin">Admin</NavLink>}
 
         {user ? (

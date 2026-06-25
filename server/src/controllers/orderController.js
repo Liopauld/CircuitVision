@@ -7,6 +7,7 @@ import {
   releaseReserved,
   settlePayment,
 } from '../services/walletService.js';
+import { notify } from '../services/notificationService.js';
 
 // Transition table. For each action: which order statuses it is valid from,
 // which party (relative to the order) may perform it, and the resulting status.
@@ -155,6 +156,17 @@ export async function transitionOrder(req, res) {
   order.status = rule.to;
   order.statusHistory.push({ status: rule.to, note: note || `${actor} → ${action}` });
   await order.save();
+
+  // Notify the other party (or both, when an admin acts) about the change.
+  const label = rule.to.replace(/_/g, ' ');
+  const msg = `Order "${order.titleSnapshot}" is now ${label}.`;
+  const link = `/orders/${order._id}`;
+  if (actor === 'admin') {
+    await notify(order.buyerId, 'order', msg, link);
+    await notify(order.sellerId, 'order', msg, link);
+  } else {
+    await notify(actor === 'buyer' ? order.sellerId : order.buyerId, 'order', msg, link);
+  }
 
   res.json({ order });
 }

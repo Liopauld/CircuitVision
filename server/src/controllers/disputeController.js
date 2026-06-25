@@ -5,6 +5,7 @@ import { Listing } from '../models/Listing.js';
 import { User } from '../models/User.js';
 import { ApiError } from '../middleware/errorHandler.js';
 import { refundSettledPayment } from '../services/walletService.js';
+import { notify } from '../services/notificationService.js';
 
 // A dispute can only be raised once the payment has settled but before the
 // order is closed. Mirrors the `dispute` rule in the order transition table.
@@ -59,6 +60,14 @@ export async function raiseDispute(req, res) {
   order.status = 'disputed';
   order.statusHistory.push({ status: 'disputed', note: `${actor} opened a dispute` });
   await order.save();
+
+  const otherParty = actor === 'buyer' ? order.sellerId : order.buyerId;
+  await notify(
+    otherParty,
+    'dispute',
+    `A dispute was opened on "${order.titleSnapshot}".`,
+    `/orders/${order._id}`
+  );
 
   res.status(201).json({ dispute });
 }
@@ -199,6 +208,10 @@ export async function resolveDispute(req, res) {
     senderId: req.user.id,
     body: note?.trim() || `Resolved as "${resolution}".`,
   });
+
+  const outcome = `Dispute on "${order.titleSnapshot}" was resolved: ${resolution}.`;
+  await notify(order.buyerId, 'dispute', outcome, `/orders/${order._id}`);
+  await notify(order.sellerId, 'dispute', outcome, `/orders/${order._id}`);
 
   res.json({ dispute, order });
 }

@@ -14,6 +14,7 @@ import Orders from './pages/Orders.jsx';
 import OrderDetail from './pages/OrderDetail.jsx';
 import Messages from './pages/Messages.jsx';
 import Conversation from './pages/Conversation.jsx';
+import Notifications from './pages/Notifications.jsx';
 import Admin from './pages/Admin.jsx';
 import Login from './pages/Login.jsx';
 import Register from './pages/Register.jsx';
@@ -69,6 +70,10 @@ export default function App() {
             <Route
               path="/messages/:id"
               element={<ProtectedRoute>{wrap(<Conversation />)}</ProtectedRoute>}
+            />
+            <Route
+              path="/notifications"
+              element={<ProtectedRoute>{wrap(<Notifications />)}</ProtectedRoute>}
             />
             <Route
               path="/profile"
