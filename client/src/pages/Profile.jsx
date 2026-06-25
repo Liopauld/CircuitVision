@@ -41,6 +41,15 @@ export default function Profile() {
     }
   }
 
+  async function repost(id) {
+    try {
+      const { data } = await api.post(`/listings/${id}/repost`);
+      setListings((prev) => prev.map((l) => (l._id === id ? data.listing : l)));
+    } catch (err) {
+      setError(apiError(err));
+    }
+  }
+
   return (
     <div>
       <div className="panel" style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
@@ -119,6 +128,16 @@ export default function Profile() {
                             </option>
                           ))}
                         </select>
+                        {l.status === 'available' &&
+                          l.expiresAt &&
+                          new Date(l.expiresAt) < new Date() && (
+                            <div style={{ marginTop: '0.4rem', display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                              <span className="status-tag status-rejected">expired</span>
+                              <button className="btn sm" onClick={() => repost(l._id)}>
+                                Repost
+                              </button>
+                            </div>
+                          )}
                       </td>
                       <td className="mono">{l.viewCount}</td>
                     </tr>

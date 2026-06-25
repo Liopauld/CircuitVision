@@ -3,6 +3,7 @@ import {
   CATEGORIES,
   CONDITIONS,
   STATUSES,
+  listingExpiry,
 } from '../models/Listing.js';
 import { uploadImageBuffer } from '../config/cloudinary.js';
 import { ApiError } from '../middleware/errorHandler.js';
@@ -27,6 +28,12 @@ export async function listListings(req, res) {
 
   if (q && q.trim()) {
     filter.$text = { $search: q.trim() };
+  }
+
+  // Hide stale (expired) listings from public browse. A null expiry (legacy /
+  // not-yet-approved) is treated as still live.
+  if (filter.status === 'available') {
+    filter.$or = [{ expiresAt: null }, { expiresAt: { $gt: new Date() } }];
   }
 
   const listings = await Listing.find(filter)
@@ -140,6 +147,21 @@ export async function updateListing(req, res) {
     listing[key] = req.body[key];
   }
 
+  await listing.save();
+  res.json({ listing });
+}
+
+// POST /api/listings/:id/repost — owner refreshes a stale listing's live window.
+export async function repostListing(req, res) {
+  const listing = await Listing.findById(req.params.id);
+  if (!listing) throw new ApiError(404, 'Listing not found.');
+  if (String(listing.sellerId) !== req.user.id && req.user.role !== 'admin') {
+    throw new ApiError(403, 'You can only repost your own listings.');
+  }
+  if (!['available', 'pending'].includes(listing.status)) {
+    throw new ApiError(409, `A ${listing.status} listing cannot be reposted.`);
+  }
+  listing.expiresAt = listingExpiry();
   await listing.save();
   res.json({ listing });
 }

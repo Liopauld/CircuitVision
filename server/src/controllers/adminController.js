@@ -1,4 +1,4 @@
-import { Listing } from '../models/Listing.js';
+import { Listing, listingExpiry } from '../models/Listing.js';
 import { User } from '../models/User.js';
 import { Order } from '../models/Order.js';
 import { WalletTransaction } from '../models/WalletTransaction.js';
@@ -21,6 +21,7 @@ export async function approveListing(req, res) {
   const listing = await Listing.findById(req.params.id);
   if (!listing) throw new ApiError(404, 'Listing not found.');
   listing.status = 'available';
+  listing.expiresAt = listingExpiry(); // starts the live window
   await listing.save();
   res.json({ listing });
 }
