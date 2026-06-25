@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import Reveal from '../components/Reveal.jsx';
 import { categoryLabel, peso } from '../constants.js';
 
-const PLACEHOLDER = 'https://placehold.co/600x450/0b1120/22d3ee?text=No+Image';
+const PLACEHOLDER = 'https://placehold.co/600x450/0a1a13/e8b765?text=No+Image';
 
 export default function ListingDetail() {
   const { id } = useParams();

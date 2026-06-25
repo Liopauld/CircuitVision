@@ -4,42 +4,50 @@
    ========================================================================= */
 
 :root {
-  /* Surfaces */
-  --bg: #070b14;
-  --bg-2: #0b1120;
-  --surface: rgba(18, 26, 44, 0.72);
-  --surface-solid: #121a2c;
-  --surface-hi: rgba(30, 41, 66, 0.8);
-  --border: rgba(94, 234, 255, 0.12);
-  --border-hi: rgba(94, 234, 255, 0.4);
+  /* Rev.A — "populated board": soldermask base, copper/ENIG-gold traces,
+     silkscreen-white ink. The whole UI reads as a printed circuit board. */
 
-  /* Neon palette */
-  --cyan: #22d3ee;
-  --cyan-bright: #67e8f9;
-  --violet: #8b5cf6;
-  --magenta: #e5396b;
-  --green: #34d399;
-  --amber: #fbbf24;
+  /* Surfaces — soldermask green-black */
+  --bg: #07120d;
+  --bg-2: #0a1a13;
+  --surface: rgba(16, 38, 28, 0.72);
+  --surface-solid: #0e2018;
+  --surface-hi: rgba(22, 48, 36, 0.82);
+  --border: rgba(201, 138, 58, 0.18);
+  --border-hi: rgba(232, 183, 101, 0.45);
 
-  /* Category accents */
-  --c-esp32: #22d3ee;
-  --c-raspi: #e5396b;
-  --c-arduino: #2dd4bf;
+  /* Copper / gold (traces + pads) — the single accent family */
+  --copper: #c98a3a;
+  --copper-bright: #e8b765;
+  --gold: #e8b765;
+  --solder: #d8dde0; /* bright tinned-solder highlight */
 
-  /* Text */
-  --text: #e8eefc;
-  --muted: #8595b4;
-  --text-dim: #5d6b8a;
+  /* Aliases kept so existing rules resolve to the new palette */
+  --cyan: var(--copper-bright);
+  --cyan-bright: #f3d39a;
+  --violet: var(--copper);
+  --magenta: #c51a4a;
+  --green: #4cc38a;
+  --amber: #e8b765;
 
-  --radius: 16px;
-  --radius-sm: 10px;
-  --glow-cyan: 0 0 24px rgba(34, 211, 238, 0.35);
-  --glow-violet: 0 0 24px rgba(139, 92, 246, 0.35);
+  /* Category accents — authentic board colours */
+  --c-esp32: #3fa7b8;   /* display/OLED teal */
+  --c-raspi: #c51a4a;   /* Raspberry Pi raspberry */
+  --c-arduino: #00979d; /* Arduino teal */
 
-  /* Type system — "datasheet / instrument panel":
-     display = squared techno face (silkscreen feel), body = humanist sans,
-     mono = datasheet readouts (prices, designators, specs). */
-  --font-display: 'Chakra Petch', 'Inter', system-ui, sans-serif;
+  /* Text — silkscreen ink */
+  --text: #eef3ea;
+  --muted: #8aa394;
+  --text-dim: #5e7567;
+
+  --radius: 14px;
+  --radius-sm: 9px;
+  --glow-cyan: 0 0 0 1px rgba(232, 183, 101, 0.16), 0 8px 22px rgba(0, 0, 0, 0.45);
+  --glow-violet: 0 0 0 1px rgba(201, 138, 58, 0.16), 0 8px 22px rgba(0, 0, 0, 0.45);
+
+  /* Type system — display = Saira (engineering grotesque), body = Inter,
+     mono = JetBrains Mono for the silkscreen labels, designators & readouts. */
+  --font-display: 'Saira', 'Inter', system-ui, sans-serif;
   --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
     sans-serif;
   --font-mono: 'JetBrains Mono', 'SF Mono', ui-monospace, Menlo, monospace;
@@ -64,16 +72,17 @@ body {
   overflow-x: hidden;
 }
 
-/* Layered animated background: radial neon blooms + a faint circuit grid. */
+/* The board surface: a soft copper bloom over soldermask, with faint copper
+   traces routed across it (diagonal lines + a pad-grid of drilled vias). Calm
+   by design — the boldness is spent on the cards, not the wallpaper. */
 body::before {
   content: '';
   position: fixed;
   inset: 0;
   z-index: -2;
   background:
-    radial-gradient(60vw 60vw at 12% -8%, rgba(34, 211, 238, 0.14), transparent 60%),
-    radial-gradient(55vw 55vw at 100% 0%, rgba(139, 92, 246, 0.14), transparent 55%),
-    radial-gradient(50vw 50vw at 50% 120%, rgba(229, 57, 107, 0.1), transparent 60%),
+    radial-gradient(70vw 50vw at 85% -10%, rgba(201, 138, 58, 0.12), transparent 60%),
+    radial-gradient(60vw 60vw at 0% 110%, rgba(0, 151, 157, 0.08), transparent 60%),
     var(--bg);
 }
 body::after {
@@ -82,17 +91,19 @@ body::after {
   inset: 0;
   z-index: -1;
   background-image:
-    linear-gradient(rgba(94, 234, 255, 0.045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(94, 234, 255, 0.045) 1px, transparent 1px);
-  background-size: 44px 44px;
-  mask-image: radial-gradient(circle at 50% 30%, #000 0%, transparent 80%);
-  -webkit-mask-image: radial-gradient(circle at 50% 30%, #000 0%, transparent 80%);
-  animation: gridDrift 40s linear infinite;
-}
-@keyframes gridDrift {
-  to {
-    background-position: 44px 44px, 44px 44px;
-  }
+    /* diagonal copper traces */
+    repeating-linear-gradient(
+      45deg,
+      rgba(201, 138, 58, 0.05) 0,
+      rgba(201, 138, 58, 0.05) 1px,
+      transparent 1px,
+      transparent 26px
+    ),
+    /* drilled-via pad grid */
+    radial-gradient(rgba(232, 183, 101, 0.07) 1.2px, transparent 1.4px);
+  background-size: auto, 52px 52px;
+  mask-image: radial-gradient(circle at 50% 25%, #000 0%, transparent 85%);
+  -webkit-mask-image: radial-gradient(circle at 50% 25%, #000 0%, transparent 85%);
 }
 
 a {
@@ -197,7 +208,7 @@ h1 {
   50% { opacity: 0.55; transform: scale(0.85); }
 }
 .brand span.grad {
-  background: linear-gradient(90deg, var(--cyan), var(--violet));
+  background: linear-gradient(95deg, #f3d39a, var(--copper));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -231,7 +242,7 @@ h1 {
 }
 .nav-links a.active {
   color: var(--cyan);
-  background: rgba(34, 211, 238, 0.1);
+  background: rgba(232, 183, 101, 0.12);
 }
 .nav-pill {
   display: flex;
@@ -318,15 +329,16 @@ button.btn,
   align-items: center;
   justify-content: center;
   gap: 0.45rem;
-  background: linear-gradient(135deg, var(--cyan), #0ea5b7);
-  color: #04141a;
+  background: linear-gradient(135deg, var(--copper-bright), var(--copper));
+  color: #1c1205;
   border: none;
   padding: 0.7rem 1.15rem;
   border-radius: var(--radius-sm);
   cursor: pointer;
+  font-family: var(--font-display);
   font-size: 0.95rem;
-  font-weight: 700;
-  letter-spacing: -0.01em;
+  font-weight: 600;
+  letter-spacing: 0.005em;
   transition: filter 0.18s ease, box-shadow 0.18s ease;
 }
 .btn:hover {
@@ -347,8 +359,9 @@ button.btn,
   box-shadow: none;
 }
 .btn.violet {
-  background: linear-gradient(135deg, var(--violet), #6d28d9);
-  color: #fff;
+  /* "tinned solder" — a metallic silver secondary action */
+  background: linear-gradient(135deg, #d3d8db, #9aa2a7);
+  color: #0e2018;
 }
 .btn.violet:hover {
   box-shadow: var(--glow-violet);
@@ -384,7 +397,7 @@ select:focus,
 textarea:focus {
   outline: none;
   border-color: var(--border-hi);
-  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.12);
+  box-shadow: 0 0 0 3px rgba(232, 183, 101, 0.14);
 }
 label {
   display: block;
@@ -431,7 +444,7 @@ label {
   margin: 0.2rem 0;
 }
 .hero .grad {
-  background: linear-gradient(90deg, var(--cyan), var(--violet) 60%, var(--magenta));
+  background: linear-gradient(95deg, #f3d39a, var(--copper-bright) 45%, var(--copper));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -532,7 +545,7 @@ label {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, transparent 55%, rgba(7, 11, 20, 0.85));
+  background: linear-gradient(180deg, transparent 55%, rgba(7, 18, 13, 0.88));
 }
 .listing-card-body {
   padding: 0.85rem 0.95rem 1rem;
@@ -541,6 +554,35 @@ label {
   margin: 0.5rem 0 0.35rem;
   font-size: 1rem;
 }
+
+/* Signature: each listing is a component on the board — a silkscreen reference
+   designator (U1 / C3 / R7) and tinned solder pads on the card corners. */
+.listing-card .refdes {
+  position: absolute;
+  top: 0.55rem;
+  right: 0.7rem;
+  z-index: 2;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--solder);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.75);
+}
+.listing-card .pad {
+  position: absolute;
+  z-index: 2;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #f4f6f7, var(--copper) 120%);
+  box-shadow: 0 0 0 1.5px rgba(201, 138, 58, 0.5);
+  opacity: 0.6;
+  transition: opacity 0.2s ease;
+}
+.listing-card .pad.bl { bottom: 0.7rem; left: 0.6rem; }
+.listing-card .pad.br { bottom: 0.7rem; right: 0.6rem; }
+.listing-card:hover .pad { opacity: 1; }
 .badge {
   position: absolute;
   top: 0.7rem;
@@ -555,9 +597,9 @@ label {
   letter-spacing: 0.06em;
   backdrop-filter: blur(6px);
 }
-.badge.cat-esp32 { color: var(--c-esp32); background: rgba(34, 211, 238, 0.16); border: 1px solid rgba(34, 211, 238, 0.4); }
-.badge.cat-raspi { color: var(--c-raspi); background: rgba(229, 57, 107, 0.16); border: 1px solid rgba(229, 57, 107, 0.4); }
-.badge.cat-arduino { color: var(--c-arduino); background: rgba(45, 212, 191, 0.16); border: 1px solid rgba(45, 212, 191, 0.4); }
+.badge.cat-esp32 { color: var(--c-esp32); background: rgba(63, 167, 184, 0.16); border: 1px solid rgba(63, 167, 184, 0.45); }
+.badge.cat-raspi { color: #ff5c84; background: rgba(197, 26, 74, 0.18); border: 1px solid rgba(197, 26, 74, 0.5); }
+.badge.cat-arduino { color: #3fc6cb; background: rgba(0, 151, 157, 0.18); border: 1px solid rgba(0, 151, 157, 0.5); }
 
 .status-tag {
   display: inline-block;
@@ -569,7 +611,7 @@ label {
 }
 .status-available { color: var(--green); background: rgba(52, 211, 153, 0.14); }
 .status-pending { color: var(--amber); background: rgba(251, 191, 36, 0.14); }
-.status-reserved { color: var(--cyan); background: rgba(34, 211, 238, 0.14); }
+.status-reserved { color: var(--copper-bright); background: rgba(232, 183, 101, 0.14); }
 .status-sold, .status-rejected { color: var(--muted); background: rgba(133, 149, 180, 0.12); }
 
 .price {
@@ -583,7 +625,7 @@ label {
 }
 .price.big {
   font-size: 1.85rem;
-  background: linear-gradient(90deg, var(--cyan), var(--violet));
+  background: linear-gradient(95deg, #f3d39a, var(--copper));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -671,8 +713,8 @@ label {
   border-radius: var(--radius);
   padding: 1.6rem;
   background:
-    radial-gradient(120% 120% at 0% 0%, rgba(34, 211, 238, 0.25), transparent 50%),
-    radial-gradient(120% 120% at 100% 100%, rgba(139, 92, 246, 0.25), transparent 50%),
+    radial-gradient(120% 120% at 0% 0%, rgba(232, 183, 101, 0.22), transparent 50%),
+    radial-gradient(120% 120% at 100% 100%, rgba(0, 151, 157, 0.18), transparent 50%),
     var(--surface-solid);
   border: 1px solid var(--border-hi);
 }
@@ -718,8 +760,33 @@ label {
 .section-head {
   display: flex;
   align-items: center;
+  gap: 0.9rem;
   justify-content: space-between;
   margin: 1.8rem 0 1rem;
+}
+/* Copper trace routing out of the heading, terminating in a via. */
+.section-head h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  flex: 1;
+}
+.section-head h2::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--copper) 0%, rgba(201, 138, 58, 0.12) 92%, transparent);
+  -webkit-mask: linear-gradient(90deg, #000, #000);
+}
+.section-head h2::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+  order: 2;
+  background: radial-gradient(circle at 35% 30%, #f4f6f7, var(--copper) 120%);
+  box-shadow: 0 0 0 1.5px rgba(201, 138, 58, 0.5);
 }
 .tx-list,
 .order-list {
@@ -812,7 +879,7 @@ label {
 }
 .tab-btn.active {
   color: var(--cyan);
-  background: rgba(34, 211, 238, 0.1);
+  background: rgba(232, 183, 101, 0.12);
 }
 .data-table {
   width: 100%;
@@ -860,7 +927,7 @@ label {
 }
 .segmented .seg.active {
   border-color: var(--cyan);
-  background: rgba(34, 211, 238, 0.1);
+  background: rgba(232, 183, 101, 0.12);
   box-shadow: var(--glow-cyan);
 }
 .segmented .seg .t {
@@ -1074,7 +1141,7 @@ label {
 }
 .bubble.mine {
   align-self: flex-end;
-  background: linear-gradient(135deg, rgba(34, 211, 238, 0.22), rgba(139, 92, 246, 0.22));
+  background: linear-gradient(135deg, rgba(232, 183, 101, 0.22), rgba(201, 138, 58, 0.2));
   border: 1px solid var(--border-hi);
   border-bottom-right-radius: 4px;
 }
@@ -1123,7 +1190,7 @@ label {
   align-self: flex-end;
   border-bottom-left-radius: 12px;
   border-bottom-right-radius: 4px;
-  background: linear-gradient(135deg, rgba(34, 211, 238, 0.22), rgba(139, 92, 246, 0.22));
+  background: linear-gradient(135deg, rgba(232, 183, 101, 0.22), rgba(201, 138, 58, 0.2));
   border-color: var(--border-hi);
 }
 .callout {
