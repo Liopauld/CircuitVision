@@ -21,8 +21,6 @@ Last updated: 2026-06-24.
 
 ## 🚧 In progress — High priority (this iteration)
 
-These close the biggest gaps that stop the app from supporting a real transaction.
-
 ### 1. Email verification + password reset
 - **Approach:** token-based flow with a **mock mailer** — when no SMTP is configured the token/link is logged to the server console and returned in dev responses, mirroring the Cloudinary fallback pattern. A real mailer drops in later with zero call-site changes.
 - **User fields:** verification token + expiry; reset token + expiry.
@@ -30,18 +28,16 @@ These close the biggest gaps that stop the app from supporting a real transactio
 - **Client:** "verify your email" banner + verify page, forgot-password + reset pages.
 - **Why:** today any email string works and there's no account recovery.
 
-### 2. Dispute resolution UI
-- **Backend:** admin-only resolve transitions out of the `disputed` state — **refund buyer** (release reserved → cancelled) or **release to seller** (settle → completed).
-- **Client:** admin "Disputes" tab with resolve actions; dispute reason + status surfaced on order detail.
-- **Why:** the `disputed` order state already exists but is a dead end — a buyer/seller can get stuck.
-
 ---
 
-## 🔜 Queued — Medium priority
+## ✅ Recently shipped (Phase 3)
 
-- **Seller ratings / reviews** — after a `completed` order, buyer leaves 1–5 stars + comment; show seller average.
-- **In-app notifications** — "order verified", "new message", surfaced in nav.
-- **Listing expiry / repost** — auto-stale old available listings; one-click repost.
+- **Dispute resolution UI** — Dispute + DisputeMessage records, admin resolve (refund/partial/release/reject) via `walletService.refundSettledPayment`, "raise a dispute" + thread on order detail, admin Disputes tab.
+- **Seller ratings / reviews** — 1–5★ + comment after a completed order (1:1 with the order); seller average + reviews on listings.
+- **In-app notifications** — order/message/review/dispute events, nav badge + page.
+- **Listing expiry / repost** — 30-day live window on approval; stale listings hidden from browse; one-click repost.
+- **Rev.A "Populated Board" web redesign** — soldermask/copper/silkscreen identity (replaced generic neon), Saira/JetBrains Mono type, GSAP hero + scroll reveal.
+- **Mobile app (Expo SDK 54 / expo-router)** — runs in Expo Go; buyer/seller flows (auth, browse, buy, orders + actions, wallet, messaging, disputes). Admin still web-only.
 
 ## 🗂 Queued — Lower priority / operational
 
