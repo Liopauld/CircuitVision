@@ -39,6 +39,12 @@ const listingSchema = new mongoose.Schema(
 // Full-text search over title + description.
 listingSchema.index({ title: 'text', description: 'text' });
 
+// Browse hits status (+ optional category) and sorts by createdAt; sorts also
+// run on price / viewCount. These back the paginated catalog query.
+listingSchema.index({ status: 1, category: 1, createdAt: -1 });
+listingSchema.index({ status: 1, price: 1 });
+listingSchema.index({ status: 1, viewCount: -1 });
+
 // How long an approved listing stays live before it goes stale.
 export const LISTING_LIFETIME_DAYS = 30;
 export const listingExpiry = () =>

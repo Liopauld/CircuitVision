@@ -61,4 +61,9 @@ const orderSchema = new mongoose.Schema(
   { timestamps: { createdAt: 'createdAt', updatedAt: 'updatedAt' } }
 );
 
+// Seller dashboard aggregates by seller + status (+ updatedAt for the trend);
+// the admin queue scans by status. buyerId/sellerId already have field indexes.
+orderSchema.index({ sellerId: 1, status: 1, updatedAt: -1 });
+orderSchema.index({ status: 1, createdAt: -1 });
+
 export const Order = mongoose.model('Order', orderSchema);

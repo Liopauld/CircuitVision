@@ -30,9 +30,12 @@ export default function Browse() {
   const [category, setCategory] = useState('');
   const [sort, setSort] = useState('newest');
   const [listings, setListings] = useState([]);
+  const [page, setPage] = useState(1);
+  const [pages, setPages] = useState(1);
   const [highlights, setHighlights] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   // Curated rows (best sellers / trending) only make sense on the untouched
   // catalog view; once the user searches or filters we show plain results.
@@ -40,31 +43,41 @@ export default function Browse() {
     !category && !Object.values(filters).some((v) => v !== '');
   const featured = featuredFrom(highlights);
 
-  const fetchListings = useCallback(async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const params = Object.fromEntries(
-        Object.entries(filters).filter(([, v]) => v !== '')
-      );
-      if (category) params.category = category;
-      if (sort) params.sort = sort;
-      const { data } = await api.get('/listings', { params });
-      setListings(data.listings);
-    } catch (err) {
-      setError(apiError(err));
-    } finally {
-      setLoading(false);
-    }
-  }, [filters, category, sort]);
+  // Load a page of results. page 1 replaces the grid; later pages append
+  // (the "Load more" button). Filters/category/sort come from the closure.
+  const loadListings = useCallback(
+    async (targetPage, append) => {
+      if (append) setLoadingMore(true);
+      else setLoading(true);
+      setError('');
+      try {
+        const params = Object.fromEntries(
+          Object.entries(filters).filter(([, v]) => v !== '')
+        );
+        if (category) params.category = category;
+        if (sort) params.sort = sort;
+        params.page = targetPage;
+        const { data } = await api.get('/listings', { params });
+        setPage(data.page);
+        setPages(data.pages);
+        setListings((prev) => (append ? [...prev, ...data.listings] : data.listings));
+      } catch (err) {
+        setError(apiError(err));
+      } finally {
+        if (append) setLoadingMore(false);
+        else setLoading(false);
+      }
+    },
+    [filters, category, sort]
+  );
 
-  // Active search: refetch shortly after the user stops typing or changes a
-  // filter/category (also runs the initial load on mount). The debounce keeps
-  // us from firing a request on every keystroke.
+  // Active search: reload page 1 shortly after the user stops typing or changes
+  // a filter/category/sort (also runs the initial load on mount). The debounce
+  // keeps us from firing a request on every keystroke.
   useEffect(() => {
-    const t = setTimeout(fetchListings, 300);
+    const t = setTimeout(() => loadListings(1, false), 300);
     return () => clearTimeout(t);
-  }, [fetchListings]);
+  }, [loadListings]);
 
   // Catalog highlights — fetched once; failures are non-fatal (just hide the
   // rows) so the main grid still works.
@@ -184,11 +197,24 @@ export default function Browse() {
           <p className="muted">Try a different category or widen your filters.</p>
         </div>
       ) : (
-        <div className="grid">
-          {listings.map((l, i) => (
-            <ListingCard key={l._id} listing={l} index={i} />
-          ))}
-        </div>
+        <>
+          <div className="grid">
+            {listings.map((l, i) => (
+              <ListingCard key={l._id} listing={l} index={i} />
+            ))}
+          </div>
+          {page < pages && (
+            <div style={{ textAlign: 'center', marginTop: '1.4rem' }}>
+              <button
+                className="btn ghost"
+                onClick={() => loadListings(page + 1, true)}
+                disabled={loadingMore}
+              >
+                {loadingMore ? 'Loading…' : 'Load more'}
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

@@ -69,12 +69,20 @@ export async function listListings(req, res) {
 
   if (and.length) filter.$and = and;
 
-  const listings = await Listing.find(filter)
-    .sort(sortBy)
-    .populate('sellerId', 'name avatarUrl ratingAvg ratingCount')
-    .lean();
+  const page = Math.max(1, Number(req.query.page) || 1);
+  const limit = Math.min(60, Math.max(1, Number(req.query.limit) || 24));
 
-  res.json({ listings });
+  const [listings, total] = await Promise.all([
+    Listing.find(filter)
+      .sort(sortBy)
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .populate('sellerId', 'name avatarUrl ratingAvg ratingCount')
+      .lean(),
+    Listing.countDocuments(filter),
+  ]);
+
+  res.json({ listings, total, page, pages: Math.ceil(total / limit) });
 }
 
 // GET /api/listings/mine — current user's own listings (any status except

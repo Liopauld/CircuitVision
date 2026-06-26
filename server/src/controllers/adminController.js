@@ -11,6 +11,7 @@ export async function adminListListings(req, res) {
   const filter = status ? { status } : {};
   const listings = await Listing.find(filter)
     .sort({ createdAt: -1 })
+    .limit(200)
     .populate('sellerId', 'name email')
     .lean();
   res.json({ listings });
@@ -47,7 +48,7 @@ export async function overrideCategory(req, res) {
 
 // GET /api/admin/users
 export async function adminListUsers(req, res) {
-  const users = await User.find().sort({ createdAt: -1 }).lean();
+  const users = await User.find().sort({ createdAt: -1 }).limit(200).lean();
   res.json({
     users: users.map((u) => ({
       id: u._id,
@@ -95,6 +96,7 @@ export async function adjustWallet(req, res) {
 export async function adminListOrders(req, res) {
   const orders = await Order.find()
     .sort({ createdAt: -1 })
+    .limit(200)
     .populate('buyerId', 'name')
     .populate('sellerId', 'name')
     .lean();
