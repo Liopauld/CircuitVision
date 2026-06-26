@@ -8,6 +8,7 @@ export const STATUSES = [
   'reserved',
   'sold',
   'rejected',
+  'removed', // soft-deleted by the owner; hidden from browse + "my listings"
 ];
 
 const listingSchema = new mongoose.Schema(

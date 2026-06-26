@@ -8,6 +8,7 @@ import PageTransition from './components/PageTransition.jsx';
 import Browse from './pages/Browse.jsx';
 import ListingDetail from './pages/ListingDetail.jsx';
 import CreateListing from './pages/CreateListing.jsx';
+import EditListing from './pages/EditListing.jsx';
 import Profile from './pages/Profile.jsx';
 import Wallet from './pages/Wallet.jsx';
 import Orders from './pages/Orders.jsx';
@@ -41,6 +42,14 @@ export default function App() {
           <Routes location={location} key={location.pathname}>
             <Route path="/" element={wrap(<Browse />)} />
             <Route path="/listings/:id" element={wrap(<ListingDetail />)} />
+            <Route
+              path="/listings/:id/edit"
+              element={
+                <ProtectedRoute roles={['seller', 'admin']}>
+                  {wrap(<EditListing />)}
+                </ProtectedRoute>
+              }
+            />
             <Route path="/login" element={wrap(<Login />)} />
             <Route path="/register" element={wrap(<Register />)} />
             <Route

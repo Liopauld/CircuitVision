@@ -1,22 +1,19 @@
 import { CATEGORIES, CONDITIONS } from '../constants.js';
 
 // Controlled filter bar. Category is handled separately via chips in Browse.
-export default function Filters({ value, onChange, onApply }) {
+// Filters apply live (debounced in Browse) — there is no Apply button; submit
+// is suppressed so pressing Enter in the search box doesn't reload the page.
+export default function Filters({ value, onChange }) {
   const set = (field) => (e) => onChange({ ...value, [field]: e.target.value });
 
   return (
-    <form
-      className="filters"
-      onSubmit={(e) => {
-        e.preventDefault();
-        onApply();
-      }}
-    >
+    <form className="filters" onSubmit={(e) => e.preventDefault()}>
       <input
         type="search"
         placeholder="Search boards, modules, sensors…"
         value={value.q}
         onChange={set('q')}
+        autoFocus
       />
       <select value={value.condition} onChange={set('condition')}>
         <option value="">Any condition</option>
@@ -40,9 +37,6 @@ export default function Filters({ value, onChange, onApply }) {
         value={value.maxPrice}
         onChange={set('maxPrice')}
       />
-      <button type="submit" className="btn">
-        Apply
-      </button>
     </form>
   );
 }

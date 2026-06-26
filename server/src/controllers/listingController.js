@@ -8,14 +8,22 @@ import {
 import { uploadImageBuffer } from '../config/cloudinary.js';
 import { ApiError } from '../middleware/errorHandler.js';
 
-// GET /api/listings — public browse with filters + text search.
+// Escape user input before building a RegExp so search terms with special
+// characters (., *, (, etc.) match literally instead of throwing / misbehaving.
+const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+// GET /api/listings — public browse with filters + live partial-match search.
 export async function listListings(req, res) {
   const { q, category, condition, status, minPrice, maxPrice } = req.query;
 
   const filter = {};
 
-  // Public browse defaults to available items; callers may override.
-  filter.status = status && STATUSES.includes(status) ? status : 'available';
+  // Public browse defaults to available items; callers may override — but a
+  // soft-deleted ('removed') listing is never exposed through browse.
+  filter.status =
+    status && STATUSES.includes(status) && status !== 'removed'
+      ? status
+      : 'available';
 
   if (category && CATEGORIES.includes(category)) filter.category = category;
   if (condition && CONDITIONS.includes(condition)) filter.condition = condition;
@@ -26,15 +34,24 @@ export async function listListings(req, res) {
     if (maxPrice != null && maxPrice !== '') filter.price.$lte = Number(maxPrice);
   }
 
+  // Both the text search and the expiry guard need an $or; combine them under a
+  // single $and so neither clause clobbers the other.
+  const and = [];
+
+  // Case-insensitive substring match over title + description (so "esp" matches
+  // "ESP32"), instead of Mongo $text which only matches whole indexed words.
   if (q && q.trim()) {
-    filter.$text = { $search: q.trim() };
+    const rx = new RegExp(escapeRegex(q.trim()), 'i');
+    and.push({ $or: [{ title: rx }, { description: rx }] });
   }
 
   // Hide stale (expired) listings from public browse. A null expiry (legacy /
   // not-yet-approved) is treated as still live.
   if (filter.status === 'available') {
-    filter.$or = [{ expiresAt: null }, { expiresAt: { $gt: new Date() } }];
+    and.push({ $or: [{ expiresAt: null }, { expiresAt: { $gt: new Date() } }] });
   }
+
+  if (and.length) filter.$and = and;
 
   const listings = await Listing.find(filter)
     .sort({ createdAt: -1 })
@@ -44,9 +61,13 @@ export async function listListings(req, res) {
   res.json({ listings });
 }
 
-// GET /api/listings/mine — current user's own listings (any status).
+// GET /api/listings/mine — current user's own listings (any status except
+// soft-deleted ones, which are hidden from the seller's management view too).
 export async function listMyListings(req, res) {
-  const listings = await Listing.find({ sellerId: req.user.id })
+  const listings = await Listing.find({
+    sellerId: req.user.id,
+    status: { $ne: 'removed' },
+  })
     .sort({ createdAt: -1 })
     .lean();
   res.json({ listings });
@@ -164,4 +185,26 @@ export async function repostListing(req, res) {
   listing.expiresAt = listingExpiry();
   await listing.save();
   res.json({ listing });
+}
+
+// DELETE /api/listings/:id — owner/admin soft-deletes (archives) a listing.
+// The document is kept (so order history + disputes stay intact) but marked
+// 'removed' and hidden everywhere. Blocked while an order is in flight.
+export async function deleteListing(req, res) {
+  const listing = await Listing.findById(req.params.id);
+  if (!listing) throw new ApiError(404, 'Listing not found.');
+  if (String(listing.sellerId) !== req.user.id && req.user.role !== 'admin') {
+    throw new ApiError(403, 'You can only delete your own listings.');
+  }
+  if (listing.status === 'reserved') {
+    throw new ApiError(
+      409,
+      'This listing has an order in progress and cannot be deleted.'
+    );
+  }
+  if (listing.status !== 'removed') {
+    listing.status = 'removed';
+    await listing.save();
+  }
+  res.json({ ok: true });
 }

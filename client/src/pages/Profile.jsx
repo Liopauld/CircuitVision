@@ -50,6 +50,18 @@ export default function Profile() {
     }
   }
 
+  async function remove(id) {
+    if (!window.confirm('Delete this listing? It will be hidden from buyers and removed from your listings.')) {
+      return;
+    }
+    try {
+      await api.delete(`/listings/${id}`);
+      setListings((prev) => prev.filter((l) => l._id !== id));
+    } catch (err) {
+      setError(apiError(err));
+    }
+  }
+
   return (
     <div>
       <div className="panel" style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
@@ -99,6 +111,7 @@ export default function Profile() {
                     <th>Price</th>
                     <th>Status</th>
                     <th>Views</th>
+                    <th></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -140,6 +153,25 @@ export default function Profile() {
                           )}
                       </td>
                       <td className="mono">{l.viewCount}</td>
+                      <td>
+                        <div style={{ display: 'flex', gap: '0.4rem' }}>
+                          <Link to={`/listings/${l._id}/edit`} className="btn ghost sm">
+                            Edit
+                          </Link>
+                          <button
+                            className="btn ghost sm danger"
+                            onClick={() => remove(l._id)}
+                            disabled={l.status === 'reserved'}
+                            title={
+                              l.status === 'reserved'
+                                ? 'An order is in progress on this listing.'
+                                : 'Delete listing'
+                            }
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

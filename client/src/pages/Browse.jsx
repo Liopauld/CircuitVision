@@ -15,30 +15,30 @@ export default function Browse() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
 
-  const fetchListings = useCallback(
-    async (cat = category) => {
-      setLoading(true);
-      setError('');
-      try {
-        const params = Object.fromEntries(
-          Object.entries(filters).filter(([, v]) => v !== '')
-        );
-        if (cat) params.category = cat;
-        const { data } = await api.get('/listings', { params });
-        setListings(data.listings);
-      } catch (err) {
-        setError(apiError(err));
-      } finally {
-        setLoading(false);
-      }
-    },
-    [filters, category]
-  );
+  const fetchListings = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const params = Object.fromEntries(
+        Object.entries(filters).filter(([, v]) => v !== '')
+      );
+      if (category) params.category = category;
+      const { data } = await api.get('/listings', { params });
+      setListings(data.listings);
+    } catch (err) {
+      setError(apiError(err));
+    } finally {
+      setLoading(false);
+    }
+  }, [filters, category]);
 
+  // Active search: refetch shortly after the user stops typing or changes a
+  // filter/category (also runs the initial load on mount). The debounce keeps
+  // us from firing a request on every keystroke.
   useEffect(() => {
-    fetchListings('');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    const t = setTimeout(fetchListings, 300);
+    return () => clearTimeout(t);
+  }, [fetchListings]);
 
   // Hero entrance — staggered reveal of the headline + category chips on mount.
   // matchMedia disables motion for users who prefer reduced motion.
@@ -73,9 +73,8 @@ export default function Browse() {
   );
 
   function pickCategory(cat) {
-    const next = category === cat ? '' : cat;
-    setCategory(next);
-    fetchListings(next);
+    // The debounced effect picks up the change and refetches.
+    setCategory((prev) => (prev === cat ? '' : cat));
   }
 
   return (
@@ -111,7 +110,7 @@ export default function Browse() {
         ))}
       </div>
 
-      <Filters value={filters} onChange={setFilters} onApply={() => fetchListings()} />
+      <Filters value={filters} onChange={setFilters} />
 
       {error && <p className="error">{error}</p>}
 

@@ -6,6 +6,7 @@ import {
   createListing,
   updateListing,
   repostListing,
+  deleteListing,
 } from '../controllers/listingController.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { upload } from '../middleware/upload.js';
@@ -24,6 +25,7 @@ router.post(
   asyncHandler(createListing)
 );
 router.patch('/:id', requireAuth, asyncHandler(updateListing));
+router.delete('/:id', requireAuth, asyncHandler(deleteListing));
 router.post('/:id/repost', requireAuth, asyncHandler(repostListing));
 
 export default router;
