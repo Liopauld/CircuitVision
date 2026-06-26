@@ -1,9 +1,9 @@
-import { CATEGORIES, CONDITIONS } from '../constants.js';
+import { CATEGORIES, CONDITIONS, SORT_OPTIONS } from '../constants.js';
 
 // Controlled filter bar. Category is handled separately via chips in Browse.
 // Filters apply live (debounced in Browse) — there is no Apply button; submit
 // is suppressed so pressing Enter in the search box doesn't reload the page.
-export default function Filters({ value, onChange }) {
+export default function Filters({ value, onChange, sort, onSortChange }) {
   const set = (field) => (e) => onChange({ ...value, [field]: e.target.value });
 
   return (
@@ -37,6 +37,17 @@ export default function Filters({ value, onChange }) {
         value={value.maxPrice}
         onChange={set('maxPrice')}
       />
+      <select
+        value={sort}
+        onChange={(e) => onSortChange(e.target.value)}
+        aria-label="Sort listings"
+      >
+        {SORT_OPTIONS.map((s) => (
+          <option key={s.value} value={s.value}>
+            {s.label}
+          </option>
+        ))}
+      </select>
     </form>
   );
 }

@@ -18,6 +18,14 @@ export const LISTING_STATUSES = [
   'rejected',
 ];
 
+// Browse sort orders — values must match the server SORTS map.
+export const SORT_OPTIONS = [
+  { value: 'newest', label: 'Newest' },
+  { value: 'price_asc', label: 'Price: Low → High' },
+  { value: 'price_desc', label: 'Price: High → Low' },
+  { value: 'views', label: 'Most viewed' },
+];
+
 export const categoryLabel = (value) =>
   CATEGORIES.find((c) => c.value === value)?.label || value;
 

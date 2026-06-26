@@ -19,9 +19,18 @@ const liveMatch = () => ({
 // characters (., *, (, etc.) match literally instead of throwing / misbehaving.
 const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+// Supported Browse sort orders (all listing-level fields, so they're cheap).
+const SORTS = {
+  newest: { createdAt: -1 },
+  price_asc: { price: 1 },
+  price_desc: { price: -1 },
+  views: { viewCount: -1, createdAt: -1 },
+};
+
 // GET /api/listings — public browse with filters + live partial-match search.
 export async function listListings(req, res) {
-  const { q, category, condition, status, minPrice, maxPrice } = req.query;
+  const { q, category, condition, status, minPrice, maxPrice, sort } = req.query;
+  const sortBy = SORTS[sort] || SORTS.newest;
 
   const filter = {};
 
@@ -61,7 +70,7 @@ export async function listListings(req, res) {
   if (and.length) filter.$and = and;
 
   const listings = await Listing.find(filter)
-    .sort({ createdAt: -1 })
+    .sort(sortBy)
     .populate('sellerId', 'name avatarUrl ratingAvg ratingCount')
     .lean();
 

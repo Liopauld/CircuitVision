@@ -28,6 +28,7 @@ export default function Browse() {
   const heroRef = useRef(null);
   const [filters, setFilters] = useState(EMPTY);
   const [category, setCategory] = useState('');
+  const [sort, setSort] = useState('newest');
   const [listings, setListings] = useState([]);
   const [highlights, setHighlights] = useState(null);
   const [error, setError] = useState('');
@@ -47,6 +48,7 @@ export default function Browse() {
         Object.entries(filters).filter(([, v]) => v !== '')
       );
       if (category) params.category = category;
+      if (sort) params.sort = sort;
       const { data } = await api.get('/listings', { params });
       setListings(data.listings);
     } catch (err) {
@@ -54,7 +56,7 @@ export default function Browse() {
     } finally {
       setLoading(false);
     }
-  }, [filters, category]);
+  }, [filters, category, sort]);
 
   // Active search: refetch shortly after the user stops typing or changes a
   // filter/category (also runs the initial load on mount). The debounce keeps
@@ -145,7 +147,7 @@ export default function Browse() {
         ))}
       </div>
 
-      <Filters value={filters} onChange={setFilters} />
+      <Filters value={filters} onChange={setFilters} sort={sort} onSortChange={setSort} />
 
       {error && <p className="error">{error}</p>}
 
