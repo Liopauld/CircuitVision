@@ -12,6 +12,14 @@ export const CONDITIONS = [
   { value: 'used', label: 'Used' },
 ] as const;
 
+// Browse sort orders — values must match the server SORTS map.
+export const SORT_OPTIONS = [
+  { value: 'newest', label: 'Newest' },
+  { value: 'price_asc', label: 'Price ↑' },
+  { value: 'price_desc', label: 'Price ↓' },
+  { value: 'views', label: 'Popular' },
+] as const;
+
 export const categoryLabel = (value: string) =>
   CATEGORIES.find((c) => c.value === value)?.label || value;
 

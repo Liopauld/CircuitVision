@@ -1,11 +1,15 @@
 import { ScrollView, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useAuth } from '@/context/auth';
+import { useFavorites } from '@/context/favorites';
 import { peso } from '@/lib/constants';
 import { Button, Card } from '@/components/ui';
 import { colors, mono } from '@/theme/colors';
 
 export default function Profile() {
   const { user, logout } = useAuth();
+  const { count } = useFavorites();
+  const router = useRouter();
   if (!user) return null;
 
   return (
@@ -24,6 +28,12 @@ export default function Profile() {
           {peso(user.walletBalance)}
         </Text>
       </Card>
+
+      <Button
+        title={count > 0 ? `♥ Saved items (${count})` : '♡ Saved items'}
+        variant="ghost"
+        onPress={() => router.push('/saved')}
+      />
 
       <View style={{ marginTop: 8 }}>
         <Button title="Sign out" variant="danger" onPress={logout} />

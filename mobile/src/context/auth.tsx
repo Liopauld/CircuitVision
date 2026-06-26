@@ -15,6 +15,7 @@ export type User = {
   role: 'customer' | 'seller' | 'admin';
   walletBalance: number;
   reservedBalance: number;
+  favorites?: string[];
 };
 
 type AuthValue = {

@@ -6,6 +6,7 @@ import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '@/context/auth';
+import { FavoritesProvider } from '@/context/favorites';
 import { Loader } from '@/components/ui';
 import { colors } from '@/theme/colors';
 
@@ -61,6 +62,7 @@ function RootNavigator() {
         <Stack.Screen name="login" options={{ headerShown: false }} />
         <Stack.Screen name="register" options={{ title: 'Create account' }} />
         <Stack.Screen name="listing/[id]" options={{ title: 'Listing' }} />
+        <Stack.Screen name="saved" options={{ title: 'Saved items' }} />
         <Stack.Screen name="order/[id]" options={{ title: 'Order' }} />
         <Stack.Screen name="conversation/[id]" options={{ title: 'Conversation' }} />
       </Stack>
@@ -73,8 +75,10 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
       <SafeAreaProvider>
         <AuthProvider>
-          <StatusBar style="light" />
-          <RootNavigator />
+          <FavoritesProvider>
+            <StatusBar style="light" />
+            <RootNavigator />
+          </FavoritesProvider>
         </AuthProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
