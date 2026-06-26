@@ -11,6 +11,7 @@ import CreateListing from './pages/CreateListing.jsx';
 import EditListing from './pages/EditListing.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Profile from './pages/Profile.jsx';
+import EditProfile from './pages/EditProfile.jsx';
 import Wallet from './pages/Wallet.jsx';
 import Orders from './pages/Orders.jsx';
 import OrderDetail from './pages/OrderDetail.jsx';
@@ -96,6 +97,10 @@ export default function App() {
             <Route
               path="/profile"
               element={<ProtectedRoute>{wrap(<Profile />)}</ProtectedRoute>}
+            />
+            <Route
+              path="/profile/edit"
+              element={<ProtectedRoute>{wrap(<EditProfile />)}</ProtectedRoute>}
             />
             <Route
               path="/admin"

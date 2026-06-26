@@ -1,7 +1,25 @@
+import mongoose from 'mongoose';
 import { Review } from '../models/Review.js';
 import { Order } from '../models/Order.js';
+import { User } from '../models/User.js';
 import { ApiError } from '../middleware/errorHandler.js';
 import { notify } from '../services/notificationService.js';
+
+// Recompute and cache a seller's average rating + count on their User doc so
+// listing cards and storefronts don't need a per-request aggregation.
+async function recomputeSellerRating(sellerId) {
+  const [agg] = await Review.aggregate([
+    { $match: { sellerId: new mongoose.Types.ObjectId(String(sellerId)) } },
+    { $group: { _id: null, avg: { $avg: '$rating' }, count: { $sum: 1 } } },
+  ]);
+  await User.updateOne(
+    { _id: sellerId },
+    {
+      ratingAvg: agg ? Math.round(agg.avg * 10) / 10 : 0,
+      ratingCount: agg?.count || 0,
+    }
+  );
+}
 
 // POST /api/reviews  { orderId, rating, comment } — buyer reviews a completed order.
 export async function createReview(req, res) {
@@ -32,6 +50,8 @@ export async function createReview(req, res) {
     rating: stars,
     comment: (comment || '').trim(),
   });
+
+  await recomputeSellerRating(order.sellerId);
 
   await notify(order.sellerId, 'review', `You received a ${stars}★ review.`, '/profile');
 

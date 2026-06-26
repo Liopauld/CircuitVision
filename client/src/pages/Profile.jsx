@@ -65,8 +65,17 @@ export default function Profile() {
   return (
     <div>
       <div className="panel" style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-        <span className="avatar" style={{ width: 56, height: 56, fontSize: '1.4rem' }}>
-          {user.name.charAt(0).toUpperCase()}
+        <span
+          className="avatar"
+          style={{
+            width: 56,
+            height: 56,
+            fontSize: '1.4rem',
+            backgroundImage: user.avatarUrl ? `url(${user.avatarUrl})` : undefined,
+            borderColor: user.accentColor || undefined,
+          }}
+        >
+          {!user.avatarUrl && user.name.charAt(0).toUpperCase()}
         </span>
         <div style={{ flex: 1 }}>
           <h1 style={{ margin: 0 }}>{user.name}</h1>
@@ -75,11 +84,20 @@ export default function Profile() {
             <span className="status-tag status-available" style={{ textTransform: 'capitalize' }}>
               {user.role}
             </span>
+            {user.ratingCount > 0 && (
+              <> · ⭐ {user.ratingAvg} ({user.ratingCount})</>
+            )}
           </p>
+          {user.bio && <p style={{ margin: '0.3rem 0 0' }}>{user.bio}</p>}
         </div>
-        <Link to="/wallet" className="btn ghost sm">
-          {peso(user.walletBalance)}
-        </Link>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+          <Link to="/profile/edit" className="btn ghost sm">
+            ✎ Edit
+          </Link>
+          <Link to="/wallet" className="btn ghost sm">
+            {peso(user.walletBalance)}
+          </Link>
+        </div>
       </div>
 
       {canSell ? (

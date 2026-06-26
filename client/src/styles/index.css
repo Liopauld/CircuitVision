@@ -269,6 +269,37 @@ h1 {
   font-weight: 700;
   color: #061018;
   background: linear-gradient(135deg, var(--cyan), var(--violet));
+  background-size: cover;
+  background-position: center;
+  border: 2px solid transparent;
+  flex-shrink: 0;
+}
+.avatar-lg {
+  width: 80px;
+  height: 80px;
+  font-size: 2rem;
+}
+.swatches {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.4rem;
+}
+.swatch {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  cursor: pointer;
+  color: var(--text);
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  padding: 0;
+}
+.swatch.active {
+  border-color: var(--text);
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--border-hi);
 }
 
 /* ===== Mobile bottom tab bar (app-like) ===== */

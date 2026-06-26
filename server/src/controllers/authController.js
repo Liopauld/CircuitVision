@@ -1,7 +1,10 @@
 import bcrypt from 'bcryptjs';
 import { User } from '../models/User.js';
 import { signToken } from '../utils/token.js';
+import { uploadImageBuffer } from '../config/cloudinary.js';
 import { ApiError } from '../middleware/errorHandler.js';
+
+const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -74,5 +77,35 @@ export async function me(req, res) {
   if (!user) {
     throw new ApiError(404, 'User not found.');
   }
+  res.json({ user: user.toPublicJSON() });
+}
+
+// PATCH /api/auth/me — update the current user's profile (name, bio, accent
+// colour, and optional avatar image via multipart field "avatar").
+export async function updateMe(req, res) {
+  const user = await User.findById(req.user.id);
+  if (!user) throw new ApiError(404, 'User not found.');
+
+  const { name, bio, accentColor } = req.body;
+
+  if (name !== undefined) {
+    if (!String(name).trim()) throw new ApiError(400, 'Name cannot be empty.');
+    user.name = String(name).trim();
+  }
+  if (bio !== undefined) {
+    user.bio = String(bio).trim().slice(0, 280);
+  }
+  if (accentColor !== undefined) {
+    const c = String(accentColor).trim();
+    if (c && !HEX_COLOR_RE.test(c)) {
+      throw new ApiError(400, 'accentColor must be a hex colour like #c98a3a.');
+    }
+    user.accentColor = c;
+  }
+  if (req.file) {
+    user.avatarUrl = await uploadImageBuffer(req.file.buffer, 'circuitvision/avatars');
+  }
+
+  await user.save();
   res.json({ user: user.toPublicJSON() });
 }
