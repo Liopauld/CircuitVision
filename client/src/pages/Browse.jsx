@@ -4,7 +4,23 @@ import { gsap, useGSAP } from '../lib/gsap.js';
 import Filters from '../components/Filters.jsx';
 import ListingCard from '../components/ListingCard.jsx';
 import Carousel from '../components/Carousel.jsx';
+import Spotlight from '../components/Spotlight.jsx';
 import { CATEGORIES } from '../constants.js';
+
+// Build a deduped set of up to 5 featured listings for the hero showcase,
+// preferring best sellers, then trending, then new arrivals.
+function featuredFrom(h) {
+  if (!h) return [];
+  const seen = new Set();
+  const out = [];
+  for (const l of [...h.bestSellers, ...h.trending, ...h.newArrivals]) {
+    if (seen.has(l._id)) continue;
+    seen.add(l._id);
+    out.push(l);
+    if (out.length === 5) break;
+  }
+  return out;
+}
 
 const EMPTY = { q: '', condition: '', minPrice: '', maxPrice: '' };
 
@@ -21,6 +37,7 @@ export default function Browse() {
   // catalog view; once the user searches or filters we show plain results.
   const isDefaultView =
     !category && !Object.values(filters).some((v) => v !== '');
+  const featured = featuredFrom(highlights);
 
   const fetchListings = useCallback(async () => {
     setLoading(true);
@@ -107,6 +124,8 @@ export default function Browse() {
           scan-free listings, mock-wallet checkout, and verified sellers.
         </p>
       </header>
+
+      {isDefaultView && featured.length > 0 && <Spotlight items={featured} />}
 
       <div className="cat-chips">
         <button

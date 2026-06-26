@@ -871,6 +871,125 @@ label {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
 }
 
+/* ===== Hero spotlight ===== */
+.spotlight {
+  position: relative;
+  margin: 1.4rem 0 1.8rem;
+  border: 1px solid var(--border-hi);
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow: hidden;
+}
+.spotlight-slide {
+  display: grid;
+  grid-template-columns: 1.05fr 1fr;
+  min-height: 290px;
+}
+.spotlight-media {
+  position: relative;
+  overflow: hidden;
+}
+.spotlight-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.spotlight-tag {
+  position: absolute;
+  top: 0.9rem;
+  left: 0.9rem;
+  background: linear-gradient(95deg, #f3d39a, var(--copper));
+  color: #2a1a06;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 0.72rem;
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+}
+.spotlight-body {
+  padding: 1.6rem 1.8rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0.7rem;
+}
+.spotlight-body h2 {
+  margin: 0;
+  font-size: 1.7rem;
+  line-height: 1.15;
+}
+.spotlight-price {
+  font-family: var(--font-mono);
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--copper-bright);
+}
+.spotlight-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid var(--border-hi);
+  background: rgba(7, 18, 13, 0.7);
+  color: var(--text);
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  z-index: 3;
+}
+.spotlight-arrow.left {
+  left: 0.6rem;
+}
+.spotlight-arrow.right {
+  right: 0.6rem;
+}
+.spotlight-arrow:hover {
+  background: var(--surface-hi);
+}
+.spotlight-dots {
+  position: absolute;
+  bottom: 0.7rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 0.4rem;
+  z-index: 3;
+}
+.spotlight-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: none;
+  padding: 0;
+  background: rgba(238, 243, 234, 0.35);
+  cursor: pointer;
+  transition: width 0.2s ease, background 0.2s ease;
+}
+.spotlight-dot.active {
+  background: var(--copper-bright);
+  width: 20px;
+  border-radius: 4px;
+}
+@media (max-width: 640px) {
+  .spotlight-slide {
+    grid-template-columns: 1fr;
+  }
+  .spotlight-media {
+    height: 190px;
+  }
+  .spotlight-body {
+    padding: 1.2rem;
+  }
+  .spotlight-body h2 {
+    font-size: 1.4rem;
+  }
+}
+
 /* ===== Wallet ===== */
 .wallet-hero {
   position: relative;
