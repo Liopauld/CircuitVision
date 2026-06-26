@@ -53,7 +53,10 @@ export default function Login() {
           {busy ? 'Logging in…' : 'Log in'}
         </button>
       </form>
-      <p className="muted" style={{ marginTop: '1rem', textAlign: 'center' }}>
+      <p className="muted small" style={{ marginTop: '0.8rem', textAlign: 'center' }}>
+        <Link to="/forgot">Forgot password?</Link>
+      </p>
+      <p className="muted" style={{ marginTop: '0.4rem', textAlign: 'center' }}>
         No account? <Link to="/register">Create one</Link>
       </p>
     </div>

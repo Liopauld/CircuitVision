@@ -23,6 +23,10 @@ import Notifications from './pages/Notifications.jsx';
 import Admin from './pages/Admin.jsx';
 import Login from './pages/Login.jsx';
 import Register from './pages/Register.jsx';
+import VerifyEmail from './pages/VerifyEmail.jsx';
+import ForgotPassword from './pages/ForgotPassword.jsx';
+import ResetPassword from './pages/ResetPassword.jsx';
+import VerifyBanner from './components/VerifyBanner.jsx';
 
 const wrap = (el) => <PageTransition>{el}</PageTransition>;
 
@@ -42,6 +46,7 @@ export default function App() {
     <>
       <Navbar />
       <main className="container">
+        <VerifyBanner />
         <AnimatePresence mode="wait">
           <Routes location={location} key={location.pathname}>
             <Route path="/" element={wrap(<Browse />)} />
@@ -57,6 +62,9 @@ export default function App() {
             />
             <Route path="/login" element={wrap(<Login />)} />
             <Route path="/register" element={wrap(<Register />)} />
+            <Route path="/verify" element={wrap(<VerifyEmail />)} />
+            <Route path="/forgot" element={wrap(<ForgotPassword />)} />
+            <Route path="/reset" element={wrap(<ResetPassword />)} />
             <Route
               path="/dashboard"
               element={

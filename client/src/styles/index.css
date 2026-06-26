@@ -314,6 +314,20 @@ h1 {
   align-items: center;
 }
 
+/* Email-verification banner */
+.verify-banner {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  margin-bottom: 1rem;
+  padding: 0.7rem 1rem;
+  border: 1px solid var(--border-hi);
+  border-radius: var(--radius-sm);
+  background: linear-gradient(160deg, rgba(201, 138, 58, 0.14), var(--surface));
+  font-size: 0.92rem;
+}
+
 /* Wishlist heart on listing cards */
 .fav-btn {
   position: absolute;

@@ -21,6 +21,14 @@ const userSchema = new mongoose.Schema(
     isVerified: { type: Boolean, default: false },
     isBanned: { type: Boolean, default: false },
 
+    // Email-verification + password-reset tokens are stored hashed (sha256);
+    // the raw token only ever lives in the emailed link. `select: false` keeps
+    // them out of normal queries/responses.
+    verifyTokenHash: { type: String, default: null, select: false },
+    verifyTokenExpires: { type: Date, default: null, select: false },
+    resetTokenHash: { type: String, default: null, select: false },
+    resetTokenExpires: { type: Date, default: null, select: false },
+
     // Profile customization.
     avatarUrl: { type: String, default: '' },
     bio: { type: String, default: '', trim: true, maxlength: 280 },
