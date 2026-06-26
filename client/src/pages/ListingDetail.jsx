@@ -19,6 +19,7 @@ export default function ListingDetail() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [reviews, setReviews] = useState({ average: 0, count: 0, list: [] });
+  const [activeImg, setActiveImg] = useState(0);
 
   // Seller's rating, fetched once we know who the seller is.
   useEffect(() => {
@@ -97,11 +98,32 @@ export default function ListingDetail() {
   return (
     <div className="detail">
       <div className="detail-gallery">
-        {(listing.cloudinaryUrl?.length ? listing.cloudinaryUrl : [PLACEHOLDER]).map(
-          (url, i) => (
-            <img key={i} src={url} alt={`${listing.title} ${i + 1}`} />
-          )
-        )}
+        {(() => {
+          const imgs = listing.cloudinaryUrl?.length ? listing.cloudinaryUrl : [PLACEHOLDER];
+          const active = Math.min(activeImg, imgs.length - 1);
+          return (
+            <>
+              <div className="gallery-main">
+                <img src={imgs[active]} alt={`${listing.title} ${active + 1}`} />
+              </div>
+              {imgs.length > 1 && (
+                <div className="gallery-thumbs">
+                  {imgs.map((url, i) => (
+                    <button
+                      type="button"
+                      key={i}
+                      className={`gallery-thumb ${i === active ? 'active' : ''}`}
+                      onClick={() => setActiveImg(i)}
+                      aria-label={`View image ${i + 1}`}
+                    >
+                      <img src={url} alt={`${listing.title} thumbnail ${i + 1}`} />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </>
+          );
+        })()}
       </div>
 
       <div className="detail-info">

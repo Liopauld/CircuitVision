@@ -226,6 +226,32 @@ export async function updateListing(req, res) {
     listing[key] = req.body[key];
   }
 
+  // Image management (multipart): drop URLs listed in `removeImages` (JSON
+  // array) and append any newly uploaded files, capped at 5 total. A listing
+  // must always keep at least one image.
+  let images = [...listing.cloudinaryUrl];
+  if (req.body.removeImages) {
+    let toRemove;
+    try {
+      toRemove = JSON.parse(req.body.removeImages);
+    } catch {
+      throw new ApiError(400, 'removeImages must be a JSON array of image URLs.');
+    }
+    if (Array.isArray(toRemove) && toRemove.length) {
+      images = images.filter((url) => !toRemove.includes(url));
+    }
+  }
+  if (req.files?.length) {
+    const uploaded = await Promise.all(
+      req.files.map((file) => uploadImageBuffer(file.buffer))
+    );
+    images = [...images, ...uploaded];
+  }
+  if (images.length === 0) {
+    throw new ApiError(400, 'A listing must have at least one image.');
+  }
+  listing.cloudinaryUrl = images.slice(0, 5);
+
   await listing.save();
   res.json({ listing });
 }

@@ -26,7 +26,7 @@ router.post(
   upload.array('images', 5),
   asyncHandler(createListing)
 );
-router.patch('/:id', requireAuth, asyncHandler(updateListing));
+router.patch('/:id', requireAuth, upload.array('images', 5), asyncHandler(updateListing));
 router.delete('/:id', requireAuth, asyncHandler(deleteListing));
 router.post('/:id/repost', requireAuth, asyncHandler(repostListing));
 
