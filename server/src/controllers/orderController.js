@@ -77,9 +77,12 @@ export async function placeOrder(req, res) {
     statusHistory: [{ status: 'awaiting_payment', note: 'Order placed' }],
   });
 
-  // Soft-hold the buyer's funds and reserve the listing.
+  // Soft-hold the buyer's funds and draw down the listing's stock. The listing
+  // stays browsable while units remain; it only flips to 'reserved' (and out of
+  // browse) once this order claims the last unit.
   await moveToReserved(buyer, amount, order._id, `Reserved for "${listing.title}"`);
-  listing.status = 'reserved';
+  listing.quantity -= qty;
+  listing.status = listing.quantity > 0 ? 'available' : 'reserved';
   await listing.save();
 
   res.status(201).json({ order });
@@ -146,7 +149,11 @@ export async function transitionOrder(req, res) {
   if (rule.to === 'cancelled') {
     const buyer = await User.findById(order.buyerId);
     await releaseReserved(buyer, order.amountReserved, order._id, 'Order cancelled');
-    await Listing.findByIdAndUpdate(order.listingId, { status: 'available' });
+    // Return the held units to stock and make the listing browsable again.
+    await Listing.findByIdAndUpdate(order.listingId, {
+      status: 'available',
+      $inc: { quantity: order.quantity },
+    });
   }
 
   if (rule.to === 'completed') {
@@ -154,7 +161,13 @@ export async function transitionOrder(req, res) {
     const buyer = await User.findById(order.buyerId);
     const seller = await User.findById(order.sellerId);
     await settlePayment(buyer, seller, order.amountReserved, order._id);
-    await Listing.findByIdAndUpdate(order.listingId, { status: 'sold' });
+    // The units were already drawn down at order time; only mark the listing
+    // 'sold' once its stock is exhausted, otherwise leave it available.
+    const listing = await Listing.findById(order.listingId);
+    if (listing) {
+      listing.status = listing.quantity > 0 ? 'available' : 'sold';
+      await listing.save();
+    }
   }
 
   order.status = rule.to;

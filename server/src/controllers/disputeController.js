@@ -194,7 +194,16 @@ export async function resolveDispute(req, res) {
     await settlePayment(buyer, seller, toSeller, order._id);
   }
 
-  await Listing.findByIdAndUpdate(order.listingId, { status: listingStatus });
+  // A full refund cancels the order, so the held units go back into stock;
+  // partial/release keep the sale, so the units stay spent.
+  if (resolution === 'refund') {
+    await Listing.findByIdAndUpdate(order.listingId, {
+      status: listingStatus,
+      $inc: { quantity: order.quantity },
+    });
+  } else {
+    await Listing.findByIdAndUpdate(order.listingId, { status: listingStatus });
+  }
 
   order.status = orderStatus;
   order.statusHistory.push({
