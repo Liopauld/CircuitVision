@@ -3,6 +3,7 @@ import { api, apiError } from '../api/client.js';
 import { gsap, useGSAP } from '../lib/gsap.js';
 import Filters from '../components/Filters.jsx';
 import ListingCard from '../components/ListingCard.jsx';
+import Carousel from '../components/Carousel.jsx';
 import { CATEGORIES } from '../constants.js';
 
 const EMPTY = { q: '', condition: '', minPrice: '', maxPrice: '' };
@@ -12,8 +13,14 @@ export default function Browse() {
   const [filters, setFilters] = useState(EMPTY);
   const [category, setCategory] = useState('');
   const [listings, setListings] = useState([]);
+  const [highlights, setHighlights] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+
+  // Curated rows (best sellers / trending) only make sense on the untouched
+  // catalog view; once the user searches or filters we show plain results.
+  const isDefaultView =
+    !category && !Object.values(filters).some((v) => v !== '');
 
   const fetchListings = useCallback(async () => {
     setLoading(true);
@@ -39,6 +46,15 @@ export default function Browse() {
     const t = setTimeout(fetchListings, 300);
     return () => clearTimeout(t);
   }, [fetchListings]);
+
+  // Catalog highlights — fetched once; failures are non-fatal (just hide the
+  // rows) so the main grid still works.
+  useEffect(() => {
+    api
+      .get('/listings/highlights')
+      .then(({ data }) => setHighlights(data))
+      .catch(() => setHighlights(null));
+  }, []);
 
   // Hero entrance — staggered reveal of the headline + category chips on mount.
   // matchMedia disables motion for users who prefer reduced motion.
@@ -113,6 +129,26 @@ export default function Browse() {
       <Filters value={filters} onChange={setFilters} />
 
       {error && <p className="error">{error}</p>}
+
+      {isDefaultView && highlights?.bestSellers?.length > 0 && (
+        <Carousel title="Best sellers" icon="🏆" hint="Most-bought components on campus">
+          {highlights.bestSellers.map((l, i) => (
+            <ListingCard key={l._id} listing={l} index={i} />
+          ))}
+        </Carousel>
+      )}
+
+      {isDefaultView && highlights?.trending?.length > 0 && (
+        <Carousel title="Trending now" icon="📈" hint="Catching the most eyes right now">
+          {highlights.trending.map((l, i) => (
+            <ListingCard key={l._id} listing={l} index={i} />
+          ))}
+        </Carousel>
+      )}
+
+      {isDefaultView && (
+        <h2 className="section-title">All components</h2>
+      )}
 
       {loading ? (
         <div className="grid">

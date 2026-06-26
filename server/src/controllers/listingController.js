@@ -5,8 +5,15 @@ import {
   STATUSES,
   listingExpiry,
 } from '../models/Listing.js';
+import { Order } from '../models/Order.js';
 import { uploadImageBuffer } from '../config/cloudinary.js';
 import { ApiError } from '../middleware/errorHandler.js';
+
+// Match for listings that should surface in public, browsable catalog rows.
+const liveMatch = () => ({
+  status: 'available',
+  $or: [{ expiresAt: null }, { expiresAt: { $gt: new Date() } }],
+});
 
 // Escape user input before building a RegExp so search terms with special
 // characters (., *, (, etc.) match literally instead of throwing / misbehaving.
@@ -71,6 +78,48 @@ export async function listMyListings(req, res) {
     .sort({ createdAt: -1 })
     .lean();
   res.json({ listings });
+}
+
+// GET /api/listings/highlights — curated catalog rows for the home page:
+//   bestSellers  — live listings ranked by units sold (completed orders)
+//   trending     — live listings ranked by view count
+//   newArrivals  — most recently created live listings
+export async function listHighlights(req, res) {
+  // Rank by units sold across completed orders, then hydrate the live listings.
+  const sales = await Order.aggregate([
+    { $match: { status: 'completed' } },
+    { $group: { _id: '$listingId', sold: { $sum: '$quantity' } } },
+    { $sort: { sold: -1 } },
+    { $limit: 12 },
+  ]);
+  const soldByListing = new Map(sales.map((s) => [String(s._id), s.sold]));
+  const bestDocs = await Listing.find({
+    _id: { $in: sales.map((s) => s._id) },
+    ...liveMatch(),
+  })
+    .populate('sellerId', 'name')
+    .lean();
+  // Keep the aggregation's ranking order and attach the sold count for the UI.
+  const bestSellers = sales
+    .map((s) => bestDocs.find((d) => String(d._id) === String(s._id)))
+    .filter(Boolean)
+    .map((d) => ({ ...d, soldCount: soldByListing.get(String(d._id)) || 0 }))
+    .slice(0, 10);
+
+  const [trending, newArrivals] = await Promise.all([
+    Listing.find(liveMatch())
+      .sort({ viewCount: -1, createdAt: -1 })
+      .limit(10)
+      .populate('sellerId', 'name')
+      .lean(),
+    Listing.find(liveMatch())
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .populate('sellerId', 'name')
+      .lean(),
+  ]);
+
+  res.json({ bestSellers, trending, newArrivals });
 }
 
 // GET /api/listings/:id — single listing; increments view count.

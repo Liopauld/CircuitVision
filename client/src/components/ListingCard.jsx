@@ -25,6 +25,9 @@ export default function ListingCard({ listing, index = 0 }) {
           <span className={`badge cat-${listing.category}`}>
             {categoryLabel(listing.category)}
           </span>
+          {listing.soldCount > 0 && (
+            <span className="badge sold-badge">🔥 {listing.soldCount} sold</span>
+          )}
           <img src={img} alt={listing.title} loading="lazy" />
         </div>
         <div className="listing-card-body">

@@ -9,6 +9,7 @@ import Browse from './pages/Browse.jsx';
 import ListingDetail from './pages/ListingDetail.jsx';
 import CreateListing from './pages/CreateListing.jsx';
 import EditListing from './pages/EditListing.jsx';
+import Dashboard from './pages/Dashboard.jsx';
 import Profile from './pages/Profile.jsx';
 import Wallet from './pages/Wallet.jsx';
 import Orders from './pages/Orders.jsx';
@@ -52,6 +53,14 @@ export default function App() {
             />
             <Route path="/login" element={wrap(<Login />)} />
             <Route path="/register" element={wrap(<Register />)} />
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute roles={['seller', 'admin']}>
+                  {wrap(<Dashboard />)}
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/create"
               element={

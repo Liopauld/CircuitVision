@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
   listListings,
   listMyListings,
+  listHighlights,
   getListing,
   createListing,
   updateListing,
@@ -16,6 +17,7 @@ const router = Router();
 
 router.get('/', asyncHandler(listListings));
 router.get('/mine', requireAuth, asyncHandler(listMyListings));
+router.get('/highlights', asyncHandler(listHighlights));
 router.get('/:id', asyncHandler(getListing));
 router.post(
   '/',

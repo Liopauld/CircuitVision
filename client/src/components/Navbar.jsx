@@ -28,6 +28,7 @@ export default function Navbar() {
         <NavLink to="/" end>
           Browse
         </NavLink>
+        {canSell && <NavLink to="/dashboard">Dashboard</NavLink>}
         {canSell && <NavLink to="/create">Sell</NavLink>}
         {user && <NavLink to="/orders">Orders</NavLink>}
         {user && (

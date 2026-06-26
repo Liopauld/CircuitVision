@@ -86,9 +86,14 @@ export default function Profile() {
         <>
           <div className="section-head">
             <h2>My listings</h2>
-            <Link to="/create" className="btn sm">
-              + New
-            </Link>
+            <div style={{ display: 'flex', gap: '0.4rem' }}>
+              <Link to="/dashboard" className="btn ghost sm">
+                📊 Dashboard
+              </Link>
+              <Link to="/create" className="btn sm">
+                + New
+              </Link>
+            </div>
           </div>
           {error && <p className="error">{error}</p>}
           {loading ? (

@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { Order } from '../models/Order.js';
 import { Listing } from '../models/Listing.js';
 import { User } from '../models/User.js';
@@ -186,4 +187,96 @@ export async function transitionOrder(req, res) {
   }
 
   res.json({ order });
+}
+
+// GET /api/orders/seller/dashboard — sales analytics for the current seller:
+// realized revenue, escrowed (pending) payout, listing/view counts, the
+// seller's best-selling items, and a dense 7-day revenue trend.
+export async function sellerDashboard(req, res) {
+  const sellerId = new mongoose.Types.ObjectId(req.user.id);
+  const IN_FLIGHT = ['payment_verified', 'preparing', 'ready'];
+  const since = new Date();
+  since.setDate(since.getDate() - 6);
+  since.setHours(0, 0, 0, 0);
+
+  const [soldAgg, escrowAgg, listingAgg, topRaw, trendRaw] = await Promise.all([
+    Order.aggregate([
+      { $match: { sellerId, status: 'completed' } },
+      {
+        $group: {
+          _id: null,
+          revenue: { $sum: '$amountReserved' },
+          units: { $sum: '$quantity' },
+          count: { $sum: 1 },
+        },
+      },
+    ]),
+    Order.aggregate([
+      { $match: { sellerId, status: { $in: IN_FLIGHT } } },
+      { $group: { _id: null, amount: { $sum: '$amountReserved' }, count: { $sum: 1 } } },
+    ]),
+    Listing.aggregate([
+      { $match: { sellerId, status: { $ne: 'removed' } } },
+      {
+        $group: {
+          _id: null,
+          active: { $sum: { $cond: [{ $eq: ['$status', 'available'] }, 1, 0] } },
+          total: { $sum: 1 },
+          views: { $sum: '$viewCount' },
+        },
+      },
+    ]),
+    Order.aggregate([
+      { $match: { sellerId, status: 'completed' } },
+      {
+        $group: {
+          _id: '$listingId',
+          title: { $first: '$titleSnapshot' },
+          image: { $first: '$imageSnapshot' },
+          units: { $sum: '$quantity' },
+          revenue: { $sum: '$amountReserved' },
+        },
+      },
+      { $sort: { units: -1 } },
+      { $limit: 5 },
+    ]),
+    Order.aggregate([
+      { $match: { sellerId, status: 'completed', updatedAt: { $gte: since } } },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$updatedAt' } },
+          revenue: { $sum: '$amountReserved' },
+        },
+      },
+    ]),
+  ]);
+
+  // Fill in the last 7 calendar days so the chart has no gaps.
+  const trendMap = new Map(trendRaw.map((t) => [t._id, t.revenue]));
+  const trend = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    trend.push({ date: key, revenue: trendMap.get(key) || 0 });
+  }
+
+  res.json({
+    revenue: soldAgg[0]?.revenue || 0,
+    unitsSold: soldAgg[0]?.units || 0,
+    salesCount: soldAgg[0]?.count || 0,
+    pendingPayout: escrowAgg[0]?.amount || 0,
+    pendingCount: escrowAgg[0]?.count || 0,
+    activeListings: listingAgg[0]?.active || 0,
+    totalListings: listingAgg[0]?.total || 0,
+    totalViews: listingAgg[0]?.views || 0,
+    topListings: topRaw.map((t) => ({
+      listingId: t._id,
+      title: t.title,
+      image: t.image,
+      units: t.units,
+      revenue: t.revenue,
+    })),
+    trend,
+  });
 }
