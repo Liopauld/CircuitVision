@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, apiError } from '../api/client.js';
 import { CATEGORIES, CONDITIONS } from '../constants.js';
@@ -14,23 +14,44 @@ export default function CreateListing() {
     condition: 'used',
     quantity: 1,
   });
-  const [files, setFiles] = useState([]);
-  const [previews, setPreviews] = useState([]);
+  // Each entry is { file, url }; the object URL backs the preview thumbnail.
+  const [photos, setPhotos] = useState([]);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
+  // Revoke any outstanding object URLs only when leaving the page (a ref keeps
+  // the cleanup pointed at the latest list without re-running on every change).
+  const photosRef = useRef(photos);
+  photosRef.current = photos;
+  useEffect(
+    () => () => photosRef.current.forEach((p) => URL.revokeObjectURL(p.url)),
+    []
+  );
+
   const update = (field) => (e) => setForm({ ...form, [field]: e.target.value });
 
-  function handleFiles(e) {
-    const selected = Array.from(e.target.files).slice(0, 5);
-    setFiles(selected);
-    setPreviews(selected.map((f) => URL.createObjectURL(f)));
+  function addFiles(e) {
+    const incoming = Array.from(e.target.files);
+    // Reset so picking the same file again (after removing it) still fires onChange.
+    e.target.value = '';
+    if (incoming.length === 0) return; // dialog cancelled — keep current selection
+    const room = 5 - photos.length;
+    if (room <= 0) return;
+    const added = incoming
+      .slice(0, room)
+      .map((file) => ({ file, url: URL.createObjectURL(file) }));
+    setPhotos((prev) => [...prev, ...added]);
+  }
+
+  function removePhoto(index) {
+    URL.revokeObjectURL(photos[index].url);
+    setPhotos((prev) => prev.filter((_, i) => i !== index));
   }
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
-    if (files.length === 0) {
+    if (photos.length === 0) {
       setError('Please add at least one image.');
       return;
     }
@@ -38,10 +59,11 @@ export default function CreateListing() {
     try {
       const fd = new FormData();
       Object.entries(form).forEach(([k, v]) => fd.append(k, v));
-      files.forEach((file) => fd.append('images', file));
-      await api.post('/listings', fd, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      photos.forEach(({ file }) => fd.append('images', file));
+      // Let axios/the browser set Content-Type so the multipart boundary is
+      // included — hardcoding 'multipart/form-data' drops the boundary and
+      // multer can't parse the upload (req.files ends up empty).
+      await api.post('/listings', fd);
       navigate('/profile');
     } catch (err) {
       setError(apiError(err));
@@ -103,25 +125,41 @@ export default function CreateListing() {
           </label>
         </div>
 
-        <label>
-          Images <span className="muted small">(up to 5)</span>
+        {/* The file input lives OUTSIDE any <label>: a label wrapping the
+            control would forward clicks to it and open the picker twice. */}
+        <div className="field">
+          <span className="field-label">
+            Images <span className="muted small">(up to 5)</span>
+          </span>
           <div className="dropzone" onClick={() => fileInput.current?.click()}>
-            {files.length ? `${files.length} image(s) selected` : '📷 Tap to add photos'}
+            {photos.length
+              ? `${photos.length} image(s) selected — tap to add more`
+              : '📷 Tap to add photos'}
           </div>
           <input
             ref={fileInput}
             type="file"
             accept="image/*"
             multiple
-            onChange={handleFiles}
+            onChange={addFiles}
             style={{ display: 'none' }}
           />
-        </label>
+        </div>
 
-        {previews.length > 0 && (
+        {photos.length > 0 && (
           <div className="previews">
-            {previews.map((src, i) => (
-              <img key={i} src={src} alt={`preview ${i + 1}`} />
+            {photos.map((p, i) => (
+              <div className="preview-thumb" key={p.url}>
+                <img src={p.url} alt={`preview ${i + 1}`} />
+                <button
+                  type="button"
+                  className="preview-remove"
+                  onClick={() => removePhoto(i)}
+                  aria-label="Remove image"
+                >
+                  ×
+                </button>
+              </div>
             ))}
           </div>
         )}
