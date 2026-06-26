@@ -1,28 +1,49 @@
 /**
- * Seeds the database with demo accounts and component listings.
+ * Seeds the database with demo accounts, listings, completed orders, and
+ * reviews so every surface (Browse carousels, the Spotlight, the seller
+ * dashboard, ratings, storefronts) has realistic data to render.
  *
  *   npm run seed
  *
- * WARNING: this wipes the users, listings, orders, and walletTransactions
- * collections, then recreates a known demo dataset. Intended for development.
+ * WARNING: this wipes the users, listings, orders, reviews, and
+ * walletTransactions collections, then recreates a known demo dataset.
  */
 import bcrypt from 'bcryptjs';
 import mongoose from 'mongoose';
 import { connectDb } from './config/db.js';
 import { User } from './models/User.js';
-import { Listing } from './models/Listing.js';
+import { Listing, listingExpiry } from './models/Listing.js';
 import { Order } from './models/Order.js';
+import { Review } from './models/Review.js';
 import { WalletTransaction } from './models/WalletTransaction.js';
 
 const img = (slug) => `https://picsum.photos/seed/cv-${slug}/800/600`;
+const avatar = (email) => `https://i.pravatar.cc/200?u=${encodeURIComponent(email)}`;
 
 const DEMO_PASSWORD = 'Password123';
+const DAY = 24 * 60 * 60 * 1000;
 
 const USERS = [
   { name: 'CircuitVision Admin', email: 'admin@circuitvision.test', role: 'admin', walletBalance: 100000 },
-  { name: 'TechParts PH', email: 'seller@circuitvision.test', role: 'seller', walletBalance: 1500 },
-  { name: 'MakerHub Manila', email: 'maker@circuitvision.test', role: 'seller', walletBalance: 1500 },
-  { name: 'Juan Dela Cruz', email: 'customer@circuitvision.test', role: 'customer', walletBalance: 5000 },
+  {
+    name: 'TechParts PH',
+    email: 'seller@circuitvision.test',
+    role: 'seller',
+    walletBalance: 1500,
+    bio: 'Sealed dev boards and genuine modules. Ships from QC, meetups near campus.',
+    accentColor: '#3aa0c9',
+  },
+  {
+    name: 'MakerHub Manila',
+    email: 'maker@circuitvision.test',
+    role: 'seller',
+    walletBalance: 1500,
+    bio: 'Maker surplus — tested used boards at student-friendly prices.',
+    accentColor: '#4caf7d',
+  },
+  { name: 'Juan Dela Cruz', email: 'customer@circuitvision.test', role: 'customer', walletBalance: 20000 },
+  { name: 'Maria Santos', email: 'maria@circuitvision.test', role: 'customer', walletBalance: 20000 },
+  { name: 'Paolo Reyes', email: 'paolo@circuitvision.test', role: 'customer', walletBalance: 20000 },
 ];
 
 // sellerKey maps to one of the two seller emails below.
@@ -46,6 +67,33 @@ const LISTINGS = [
   { sellerKey: 1, title: 'Arduino Pro Mini 5V 16MHz', category: 'arduino', price: 160, condition: 'new', quantity: 10, slug: 'pro-mini', description: 'Compact Pro Mini for embedded projects. Requires FTDI to program.', specs: { mcu: 'ATmega328P', voltage: '5V', clock: '16MHz' } },
 ];
 
+// Weighted demand: index into LISTINGS repeated so some items sell more (and so
+// rise to the top of "Best sellers"). Spread across days so the dashboard's
+// 7-day revenue trend has shape.
+const SALES = [
+  { l: 0, daysAgo: 1 }, { l: 0, daysAgo: 2 }, { l: 0, daysAgo: 5 }, { l: 0, daysAgo: 9 },
+  { l: 8, daysAgo: 0 }, { l: 8, daysAgo: 3 }, { l: 8, daysAgo: 6 },
+  { l: 9, daysAgo: 1 }, { l: 9, daysAgo: 4 },
+  { l: 5, daysAgo: 0 }, { l: 5, daysAgo: 2 }, { l: 5, daysAgo: 11 },
+  { l: 1, daysAgo: 3 }, { l: 1, daysAgo: 7 },
+  { l: 6, daysAgo: 2 }, { l: 6, daysAgo: 8 },
+  { l: 10, daysAgo: 4 },
+  { l: 3, daysAgo: 6 },
+];
+
+const COMMENTS = [
+  'Exactly as described, fast meetup. Highly recommend!',
+  'Board works perfectly, well packed. Salamat!',
+  'Smooth transaction, legit seller.',
+  'Great price and quick to respond. Will buy again.',
+  'Tested on arrival, no issues at all.',
+  'Item as advertised. Friendly seller.',
+  '',
+];
+
+const pick = (arr, i) => arr[i % arr.length];
+const rand = (n) => Math.floor(Math.random() * n);
+
 async function run() {
   await connectDb();
 
@@ -54,18 +102,25 @@ async function run() {
     User.deleteMany({}),
     Listing.deleteMany({}),
     Order.deleteMany({}),
+    Review.deleteMany({}),
     WalletTransaction.deleteMany({}),
   ]);
 
   const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 10);
   const createdUsers = await User.create(
-    USERS.map((u) => ({ ...u, passwordHash, isVerified: true }))
+    USERS.map((u) => ({
+      ...u,
+      passwordHash,
+      isVerified: true,
+      avatarUrl: u.role === 'admin' ? '' : avatar(u.email),
+    }))
   );
   console.log(`[seed] created ${createdUsers.length} users`);
 
   const sellers = createdUsers.filter((u) => u.role === 'seller');
+  const buyers = createdUsers.filter((u) => u.role === 'customer');
 
-  const listings = LISTINGS.map((l) => ({
+  const listingDocs = LISTINGS.map((l) => ({
     sellerId: sellers[l.sellerKey]._id,
     title: l.title,
     description: l.description,
@@ -74,15 +129,109 @@ async function run() {
     condition: l.condition,
     quantity: l.quantity,
     status: 'available', // pre-approved so they show up in Browse immediately
-    cloudinaryUrl: [img(l.slug), img(`${l.slug}-2`)],
+    expiresAt: listingExpiry(),
+    cloudinaryUrl: [img(l.slug), img(`${l.slug}-2`), img(`${l.slug}-3`)],
     specs: l.specs,
-    viewCount: Math.floor(Math.random() * 120),
+    viewCount: 20 + rand(160),
   }));
   // Leave one as pending so the admin moderation queue has something to review.
-  listings[2].status = 'pending';
+  listingDocs[2].status = 'pending';
 
-  const created = await Listing.create(listings);
+  const created = await Listing.create(listingDocs);
   console.log(`[seed] created ${created.length} listings (1 pending for moderation)`);
+
+  // Running wallet balances so audit rows have sane before/after snapshots.
+  const balance = new Map(createdUsers.map((u) => [String(u._id), u.walletBalance]));
+  const orders = [];
+  const reviews = [];
+  const txns = [];
+
+  SALES.forEach((sale, i) => {
+    const listing = created[sale.l];
+    if (listing.status !== 'available') return;
+    const seller = sellers.find((s) => String(s._id) === String(listing.sellerId));
+    const buyer = buyers[i % buyers.length];
+    const amount = listing.price; // qty 1
+    const when = new Date(Date.now() - sale.daysAgo * DAY);
+    const orderId = new mongoose.Types.ObjectId();
+
+    orders.push({
+      _id: orderId,
+      buyerId: buyer._id,
+      sellerId: seller._id,
+      listingId: listing._id,
+      titleSnapshot: listing.title,
+      imageSnapshot: listing.cloudinaryUrl[0],
+      quantity: 1,
+      unitPrice: listing.price,
+      amountReserved: amount,
+      fulfillment: 'pickup',
+      status: 'completed',
+      paymentVerifiedAt: when,
+      statusHistory: [{ status: 'completed', at: when, note: 'Seed: completed sale' }],
+      createdAt: when,
+      updatedAt: when,
+    });
+
+    // Seller earns the proceeds (credit); buyer paid (debit). Track balances.
+    const sBefore = balance.get(String(seller._id));
+    balance.set(String(seller._id), sBefore + amount);
+    txns.push({
+      userId: seller._id,
+      type: 'credit',
+      amount,
+      referenceOrderId: orderId,
+      description: 'Sale proceeds',
+      balanceBefore: sBefore,
+      balanceAfter: sBefore + amount,
+      createdAt: when,
+    });
+    const bBefore = balance.get(String(buyer._id));
+    balance.set(String(buyer._id), Math.max(0, bBefore - amount));
+    txns.push({
+      userId: buyer._id,
+      type: 'debit',
+      amount,
+      referenceOrderId: orderId,
+      description: 'Payment for order',
+      balanceBefore: bBefore,
+      balanceAfter: Math.max(0, bBefore - amount),
+      createdAt: when,
+    });
+
+    // Most completed orders get a review (one per order).
+    if (i % 7 !== 6) {
+      reviews.push({
+        orderId,
+        listingId: listing._id,
+        sellerId: seller._id,
+        buyerId: buyer._id,
+        rating: [5, 5, 5, 4, 4, 3][rand(6)], // mostly 4–5, occasional 3
+        comment: pick(COMMENTS, i),
+        createdAt: when,
+      });
+    }
+  });
+
+  await Order.create(orders);
+  await Review.create(reviews);
+  await WalletTransaction.create(txns);
+  console.log(`[seed] created ${orders.length} completed orders, ${reviews.length} reviews, ${txns.length} wallet txns`);
+
+  // Persist updated wallet balances and recompute each seller's cached rating.
+  for (const u of createdUsers) {
+    const update = { walletBalance: balance.get(String(u._id)) };
+    if (u.role === 'seller') {
+      const sellerReviews = reviews.filter((r) => String(r.sellerId) === String(u._id));
+      const count = sellerReviews.length;
+      update.ratingAvg = count
+        ? Math.round((sellerReviews.reduce((s, r) => s + r.rating, 0) / count) * 10) / 10
+        : 0;
+      update.ratingCount = count;
+    }
+    await User.updateOne({ _id: u._id }, update);
+  }
+  console.log('[seed] updated balances + seller ratings');
 
   console.log('\n=== Demo accounts (password: %s) ===', DEMO_PASSWORD);
   for (const u of createdUsers) {
