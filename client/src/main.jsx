@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext.jsx';
+import { FavoritesProvider } from './context/FavoritesContext.jsx';
 import { MessagesProvider } from './context/MessagesContext.jsx';
 import { NotificationsProvider } from './context/NotificationsContext.jsx';
 import App from './App.jsx';
@@ -15,11 +16,13 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>
       <AuthProvider>
-        <MessagesProvider>
-          <NotificationsProvider>
-            <App />
-          </NotificationsProvider>
-        </MessagesProvider>
+        <FavoritesProvider>
+          <MessagesProvider>
+            <NotificationsProvider>
+              <App />
+            </NotificationsProvider>
+          </MessagesProvider>
+        </FavoritesProvider>
       </AuthProvider>
     </BrowserRouter>
   </React.StrictMode>

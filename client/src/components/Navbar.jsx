@@ -2,12 +2,14 @@ import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useMessages } from '../context/MessagesContext.jsx';
 import { useNotifications } from '../context/NotificationsContext.jsx';
+import { useFavorites } from '../context/FavoritesContext.jsx';
 import { peso } from '../constants.js';
 
 export default function Navbar() {
   const { user, logout } = useAuth();
   const { unread } = useMessages();
   const { unread: notifUnread } = useNotifications();
+  const { count: savedCount } = useFavorites();
   const navigate = useNavigate();
 
   function handleLogout() {
@@ -30,6 +32,12 @@ export default function Navbar() {
         </NavLink>
         {canSell && <NavLink to="/dashboard">Dashboard</NavLink>}
         {canSell && <NavLink to="/create">Sell</NavLink>}
+        {user && (
+          <NavLink to="/saved" className="nav-msg">
+            Saved
+            {savedCount > 0 && <span className="nav-badge">{savedCount}</span>}
+          </NavLink>
+        )}
         {user && <NavLink to="/orders">Orders</NavLink>}
         {user && (
           <NavLink to="/messages" className="nav-msg">

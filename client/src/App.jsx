@@ -14,6 +14,7 @@ import Dashboard from './pages/Dashboard.jsx';
 import Profile from './pages/Profile.jsx';
 import EditProfile from './pages/EditProfile.jsx';
 import Wallet from './pages/Wallet.jsx';
+import Saved from './pages/Saved.jsx';
 import Orders from './pages/Orders.jsx';
 import OrderDetail from './pages/OrderDetail.jsx';
 import Messages from './pages/Messages.jsx';
@@ -99,6 +100,10 @@ export default function App() {
             <Route
               path="/profile"
               element={<ProtectedRoute>{wrap(<Profile />)}</ProtectedRoute>}
+            />
+            <Route
+              path="/saved"
+              element={<ProtectedRoute>{wrap(<Saved />)}</ProtectedRoute>}
             />
             <Route
               path="/profile/edit"
