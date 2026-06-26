@@ -9,24 +9,15 @@ import {
   settlePayment,
 } from '../services/walletService.js';
 import { notify } from '../services/notificationService.js';
+import {
+  evaluateTransition,
+  drawDownStock,
+  finalizeStockStatus,
+} from '../lib/orderLifecycle.js';
 
-// Transition table. For each action: which order statuses it is valid from,
-// which party (relative to the order) may perform it, and the resulting status.
+// The order state machine (TRANSITIONS) and its validation live in
+// ../lib/orderLifecycle.js so they can be unit-tested without a DB.
 // `actor` is resolved per-request to 'buyer' | 'seller' | 'admin'.
-const TRANSITIONS = {
-  submit_payment: { from: ['awaiting_payment'], by: ['buyer'], to: 'payment_submitted' },
-  verify_payment: { from: ['payment_submitted'], by: ['seller', 'admin'], to: 'payment_verified' },
-  prepare: { from: ['payment_verified'], by: ['seller', 'admin'], to: 'preparing' },
-  ship: { from: ['preparing'], by: ['seller', 'admin'], to: 'ready' },
-  complete: { from: ['ready'], by: ['buyer', 'admin'], to: 'completed' },
-  cancel: {
-    from: ['awaiting_payment', 'payment_submitted'],
-    by: ['buyer', 'seller', 'admin'],
-    to: 'cancelled',
-  },
-  // Disputes are owned by disputeController (it also creates the Dispute record
-  // + thread), so the `disputed` status is not reachable from this table.
-};
 
 function actorFor(order, user) {
   if (user.role === 'admin') return 'admin';
@@ -82,8 +73,9 @@ export async function placeOrder(req, res) {
   // stays browsable while units remain; it only flips to 'reserved' (and out of
   // browse) once this order claims the last unit.
   await moveToReserved(buyer, amount, order._id, `Reserved for "${listing.title}"`);
-  listing.quantity -= qty;
-  listing.status = listing.quantity > 0 ? 'available' : 'reserved';
+  const drawn = drawDownStock(listing.quantity, qty);
+  listing.quantity = drawn.quantity;
+  listing.status = drawn.status;
   await listing.save();
 
   res.status(201).json({ order });
@@ -122,32 +114,24 @@ export async function getOrder(req, res) {
 // POST /api/orders/:id/actions — drive the order through its lifecycle.
 export async function transitionOrder(req, res) {
   const { action, note } = req.body;
-  const rule = TRANSITIONS[action];
-  if (!rule) {
-    throw new ApiError(400, `Unknown action: ${action}.`);
-  }
 
   const order = await Order.findById(req.params.id);
   if (!order) throw new ApiError(404, 'Order not found.');
 
   const actor = actorFor(order, req.user);
-  if (!actor) throw new ApiError(403, 'You are not a participant in this order.');
-  if (!rule.by.includes(actor)) {
-    throw new ApiError(403, `Only the ${rule.by.join('/')} can ${action.replace('_', ' ')}.`);
-  }
-  if (!rule.from.includes(order.status)) {
-    throw new ApiError(409, `Cannot ${action.replace('_', ' ')} an order that is ${order.status}.`);
-  }
+  const result = evaluateTransition(order.status, actor, action);
+  if (!result.ok) throw new ApiError(result.code, result.message);
+  const to = result.to;
 
   // Side effects on entering the new state.
   // Escrow model: the buyer's funds stay reserved through the whole fulfilment
   // and are only released to the seller when the buyer confirms completion.
   // verify_payment merely acknowledges the buyer paid into escrow.
-  if (rule.to === 'payment_verified') {
+  if (to === 'payment_verified') {
     order.paymentVerifiedAt = new Date();
   }
 
-  if (rule.to === 'cancelled') {
+  if (to === 'cancelled') {
     const buyer = await User.findById(order.buyerId);
     await releaseReserved(buyer, order.amountReserved, order._id, 'Order cancelled');
     // Return the held units to stock and make the listing browsable again.
@@ -157,7 +141,7 @@ export async function transitionOrder(req, res) {
     });
   }
 
-  if (rule.to === 'completed') {
+  if (to === 'completed') {
     // Release escrow: settle the reserved funds to the seller for good.
     const buyer = await User.findById(order.buyerId);
     const seller = await User.findById(order.sellerId);
@@ -166,17 +150,17 @@ export async function transitionOrder(req, res) {
     // 'sold' once its stock is exhausted, otherwise leave it available.
     const listing = await Listing.findById(order.listingId);
     if (listing) {
-      listing.status = listing.quantity > 0 ? 'available' : 'sold';
+      listing.status = finalizeStockStatus(listing.quantity);
       await listing.save();
     }
   }
 
-  order.status = rule.to;
-  order.statusHistory.push({ status: rule.to, note: note || `${actor} → ${action}` });
+  order.status = to;
+  order.statusHistory.push({ status: to, note: note || `${actor} → ${action}` });
   await order.save();
 
   // Notify the other party (or both, when an admin acts) about the change.
-  const label = rule.to.replace(/_/g, ' ');
+  const label = to.replace(/_/g, ' ');
   const msg = `Order "${order.titleSnapshot}" is now ${label}.`;
   const link = `/orders/${order._id}`;
   if (actor === 'admin') {

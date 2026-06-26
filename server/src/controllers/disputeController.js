@@ -5,6 +5,7 @@ import { Listing } from '../models/Listing.js';
 import { User } from '../models/User.js';
 import { ApiError } from '../middleware/errorHandler.js';
 import { releaseReserved, settlePayment } from '../services/walletService.js';
+import { resolveDisputeOutcome } from '../lib/orderLifecycle.js';
 import { notify } from '../services/notificationService.js';
 
 // A dispute can only be raised once the payment has settled but before the
@@ -161,60 +162,35 @@ export async function resolveDispute(req, res) {
   const buyer = await User.findById(order.buyerId);
   const seller = await User.findById(order.sellerId);
 
-  let refundToBuyer = 0;
-  let orderStatus;
-  let listingStatus;
+  // Resolve the financial + lifecycle outcome (pure, unit-tested). Under the
+  // escrow model the funds are still held in the buyer's reserved balance, so
+  // the outcome splits that reserve — no clawbacks.
+  const outcome = resolveDisputeOutcome(order.amountReserved, resolution, refundAmount);
+  if (!outcome.ok) throw new ApiError(outcome.code, outcome.message);
 
-  if (resolution === 'refund') {
-    refundToBuyer = order.amountReserved;
-    orderStatus = 'cancelled';
-    listingStatus = 'available';
-  } else if (resolution === 'partial') {
-    refundToBuyer = Number(refundAmount);
-    if (!refundToBuyer || refundToBuyer <= 0 || refundToBuyer >= order.amountReserved) {
-      throw new ApiError(400, `Partial refund must be between 0 and ${order.amountReserved}.`);
-    }
-    orderStatus = 'completed';
-    listingStatus = 'sold';
-  } else {
-    // 'release' or 'none' — seller keeps the funds.
-    orderStatus = 'completed';
-    listingStatus = 'sold';
+  if (outcome.refundToBuyer > 0) {
+    await releaseReserved(buyer, outcome.refundToBuyer, order._id, `Dispute refund (${resolution})`);
   }
-
-  // Under the escrow model the funds are still held in the buyer's reserved
-  // balance (a dispute can only be raised before completion settles them).
-  // Split the escrow: refund the buyer's portion back to their spendable
-  // balance, and settle the remainder to the seller. No clawbacks needed.
-  const toSeller = order.amountReserved - refundToBuyer;
-  if (refundToBuyer > 0) {
-    await releaseReserved(buyer, refundToBuyer, order._id, `Dispute refund (${resolution})`);
-  }
-  if (toSeller > 0) {
-    await settlePayment(buyer, seller, toSeller, order._id);
+  if (outcome.toSeller > 0) {
+    await settlePayment(buyer, seller, outcome.toSeller, order._id);
   }
 
   // A full refund cancels the order, so the held units go back into stock;
   // partial/release keep the sale, so the units stay spent.
-  if (resolution === 'refund') {
-    await Listing.findByIdAndUpdate(order.listingId, {
-      status: listingStatus,
-      $inc: { quantity: order.quantity },
-    });
-  } else {
-    await Listing.findByIdAndUpdate(order.listingId, { status: listingStatus });
-  }
+  const listingUpdate = { status: outcome.listingStatus };
+  if (outcome.restock) listingUpdate.$inc = { quantity: order.quantity };
+  await Listing.findByIdAndUpdate(order.listingId, listingUpdate);
 
-  order.status = orderStatus;
+  order.status = outcome.orderStatus;
   order.statusHistory.push({
-    status: orderStatus,
+    status: outcome.orderStatus,
     note: note?.trim() || `Dispute resolved: ${resolution}`,
   });
   await order.save();
 
   dispute.status = resolution === 'none' ? 'rejected' : 'resolved';
   dispute.resolution = resolution;
-  dispute.refundAmount = refundToBuyer;
+  dispute.refundAmount = outcome.refundToBuyer;
   dispute.resolvedBy = req.user.id;
   dispute.resolvedAt = new Date();
   await dispute.save();
@@ -226,9 +202,9 @@ export async function resolveDispute(req, res) {
     body: note?.trim() || `Resolved as "${resolution}".`,
   });
 
-  const outcome = `Dispute on "${order.titleSnapshot}" was resolved: ${resolution}.`;
-  await notify(order.buyerId, 'dispute', outcome, `/orders/${order._id}`);
-  await notify(order.sellerId, 'dispute', outcome, `/orders/${order._id}`);
+  const summary = `Dispute on "${order.titleSnapshot}" was resolved: ${resolution}.`;
+  await notify(order.buyerId, 'dispute', summary, `/orders/${order._id}`);
+  await notify(order.sellerId, 'dispute', summary, `/orders/${order._id}`);
 
   res.json({ dispute, order });
 }
