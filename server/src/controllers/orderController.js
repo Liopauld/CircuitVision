@@ -9,6 +9,7 @@ import {
   settlePayment,
 } from '../services/walletService.js';
 import { notify } from '../services/notificationService.js';
+import { runInTransaction } from '../lib/transaction.js';
 import {
   evaluateTransition,
   drawDownStock,
@@ -37,46 +38,58 @@ export async function placeOrder(req, res) {
   if (!listingId) throw new ApiError(400, 'listingId is required.');
   if (qty < 1) throw new ApiError(400, 'Quantity must be at least 1.');
 
-  const listing = await Listing.findById(listingId);
-  if (!listing) throw new ApiError(404, 'Listing not found.');
-  if (listing.status !== 'available') {
-    throw new ApiError(409, 'This listing is not available for purchase.');
-  }
-  if (String(listing.sellerId) === req.user.id) {
-    throw new ApiError(400, 'You cannot buy your own listing.');
-  }
-  if (qty > listing.quantity) {
-    throw new ApiError(400, `Only ${listing.quantity} in stock.`);
-  }
+  // Order creation, the buyer's fund reservation, and the listing stock
+  // draw-down all commit together (or not at all). Stock + balance are
+  // re-read inside the transaction so racing buyers can't oversell or overspend.
+  const order = await runInTransaction(async (session) => {
+    const listing = await Listing.findById(listingId).session(session);
+    if (!listing) throw new ApiError(404, 'Listing not found.');
+    if (listing.status !== 'available') {
+      throw new ApiError(409, 'This listing is not available for purchase.');
+    }
+    if (String(listing.sellerId) === req.user.id) {
+      throw new ApiError(400, 'You cannot buy your own listing.');
+    }
+    if (qty > listing.quantity) {
+      throw new ApiError(400, `Only ${listing.quantity} in stock.`);
+    }
 
-  const buyer = await User.findById(req.user.id);
-  const amount = listing.price * qty;
-  if (buyer.walletBalance < amount) {
-    throw new ApiError(400, 'Insufficient wallet balance. Top up to continue.');
-  }
+    const buyer = await User.findById(req.user.id).session(session);
+    const amount = listing.price * qty;
+    if (buyer.walletBalance < amount) {
+      throw new ApiError(400, 'Insufficient wallet balance. Top up to continue.');
+    }
 
-  const order = await Order.create({
-    buyerId: buyer._id,
-    sellerId: listing.sellerId,
-    listingId: listing._id,
-    titleSnapshot: listing.title,
-    imageSnapshot: listing.cloudinaryUrl?.[0] || '',
-    quantity: qty,
-    unitPrice: listing.price,
-    amountReserved: amount,
-    fulfillment,
-    status: 'awaiting_payment',
-    statusHistory: [{ status: 'awaiting_payment', note: 'Order placed' }],
+    const [created] = await Order.create(
+      [
+        {
+          buyerId: buyer._id,
+          sellerId: listing.sellerId,
+          listingId: listing._id,
+          titleSnapshot: listing.title,
+          imageSnapshot: listing.cloudinaryUrl?.[0] || '',
+          quantity: qty,
+          unitPrice: listing.price,
+          amountReserved: amount,
+          fulfillment,
+          status: 'awaiting_payment',
+          statusHistory: [{ status: 'awaiting_payment', note: 'Order placed' }],
+        },
+      ],
+      { session }
+    );
+
+    // Soft-hold the buyer's funds and draw down the listing's stock. The listing
+    // stays browsable while units remain; it only flips to 'reserved' (and out
+    // of browse) once this order claims the last unit.
+    await moveToReserved(buyer, amount, created._id, `Reserved for "${listing.title}"`, session);
+    const drawn = drawDownStock(listing.quantity, qty);
+    listing.quantity = drawn.quantity;
+    listing.status = drawn.status;
+    await listing.save({ session });
+
+    return created;
   });
-
-  // Soft-hold the buyer's funds and draw down the listing's stock. The listing
-  // stays browsable while units remain; it only flips to 'reserved' (and out of
-  // browse) once this order claims the last unit.
-  await moveToReserved(buyer, amount, order._id, `Reserved for "${listing.title}"`);
-  const drawn = drawDownStock(listing.quantity, qty);
-  listing.quantity = drawn.quantity;
-  listing.status = drawn.status;
-  await listing.save();
 
   res.status(201).json({ order });
 }
@@ -123,41 +136,48 @@ export async function transitionOrder(req, res) {
   if (!result.ok) throw new ApiError(result.code, result.message);
   const to = result.to;
 
-  // Side effects on entering the new state.
+  // Apply the wallet movement, listing change, and order status bump as one
+  // atomic unit. The order is re-loaded inside so a transaction retry can't
+  // double-apply money or append the status-history entry twice.
   // Escrow model: the buyer's funds stay reserved through the whole fulfilment
-  // and are only released to the seller when the buyer confirms completion.
+  // and are only released to the seller when the buyer confirms completion;
   // verify_payment merely acknowledges the buyer paid into escrow.
-  if (to === 'payment_verified') {
-    order.paymentVerifiedAt = new Date();
-  }
+  await runInTransaction(async (session) => {
+    const o = await Order.findById(order._id).session(session);
 
-  if (to === 'cancelled') {
-    const buyer = await User.findById(order.buyerId);
-    await releaseReserved(buyer, order.amountReserved, order._id, 'Order cancelled');
-    // Return the held units to stock and make the listing browsable again.
-    await Listing.findByIdAndUpdate(order.listingId, {
-      status: 'available',
-      $inc: { quantity: order.quantity },
-    });
-  }
-
-  if (to === 'completed') {
-    // Release escrow: settle the reserved funds to the seller for good.
-    const buyer = await User.findById(order.buyerId);
-    const seller = await User.findById(order.sellerId);
-    await settlePayment(buyer, seller, order.amountReserved, order._id);
-    // The units were already drawn down at order time; only mark the listing
-    // 'sold' once its stock is exhausted, otherwise leave it available.
-    const listing = await Listing.findById(order.listingId);
-    if (listing) {
-      listing.status = finalizeStockStatus(listing.quantity);
-      await listing.save();
+    if (to === 'payment_verified') {
+      o.paymentVerifiedAt = new Date();
     }
-  }
 
-  order.status = to;
-  order.statusHistory.push({ status: to, note: note || `${actor} → ${action}` });
-  await order.save();
+    if (to === 'cancelled') {
+      const buyer = await User.findById(o.buyerId).session(session);
+      await releaseReserved(buyer, o.amountReserved, o._id, 'Order cancelled', session);
+      // Return the held units to stock and make the listing browsable again.
+      await Listing.findByIdAndUpdate(
+        o.listingId,
+        { status: 'available', $inc: { quantity: o.quantity } },
+        { session }
+      );
+    }
+
+    if (to === 'completed') {
+      // Release escrow: settle the reserved funds to the seller for good.
+      const buyer = await User.findById(o.buyerId).session(session);
+      const seller = await User.findById(o.sellerId).session(session);
+      await settlePayment(buyer, seller, o.amountReserved, o._id, session);
+      // The units were already drawn down at order time; only mark the listing
+      // 'sold' once its stock is exhausted, otherwise leave it available.
+      const listing = await Listing.findById(o.listingId).session(session);
+      if (listing) {
+        listing.status = finalizeStockStatus(listing.quantity);
+        await listing.save({ session });
+      }
+    }
+
+    o.status = to;
+    o.statusHistory.push({ status: to, note: note || `${actor} → ${action}` });
+    await o.save({ session });
+  });
 
   // Notify the other party (or both, when an admin acts) about the change.
   const label = to.replace(/_/g, ' ');

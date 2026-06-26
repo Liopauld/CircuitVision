@@ -54,6 +54,8 @@ All wallet movement goes through `services/walletService.js`, which is the **onl
 - `moveToReserved` / `releaseReserved` — soft-hold funds between spendable and `reservedBalance`.
 - `settlePayment(buyer, seller, amount, orderId)` — finalize: clear buyer's reserve (debit) and credit seller.
 
+Each helper takes an optional trailing `session` so a balance change and its audit row commit together. Multi-write flows (top-up, place order, order transitions, dispute resolution) wrap their work in `runInTransaction(work)` (`lib/transaction.js`), which runs `work(session)` in a MongoDB transaction when the deployment supports one and **falls back to `work(null)` (no session) on a standalone mongod** — so local dev still works, atomicity kicks in on a replica set / Atlas. `work` must be idempotent (re-load the docs it writes via the session) because a transaction may be retried.
+
 ### Order lifecycle is a single transition table
 
 `controllers/orderController.js` defines `TRANSITIONS` — a declarative map of `action → { from: [validStatuses], by: [allowedActors], to: newStatus }`. `transitionOrder` validates actor + current status against this table, then runs side effects keyed on the destination status (e.g. `cancelled` releases reserved funds and frees the listing; `completed` calls `settlePayment` and marks the listing `sold`). **Add new order behavior by editing the transition table and its side-effect block, not by adding ad-hoc endpoints.** Actor is computed per-request via `actorFor()` as `buyer` / `seller` / `admin`.

@@ -6,6 +6,7 @@ import { User } from '../models/User.js';
 import { ApiError } from '../middleware/errorHandler.js';
 import { releaseReserved, settlePayment } from '../services/walletService.js';
 import { resolveDisputeOutcome } from '../lib/orderLifecycle.js';
+import { runInTransaction } from '../lib/transaction.js';
 import { notify } from '../services/notificationService.js';
 
 // A dispute can only be raised once the payment has settled but before the
@@ -159,41 +160,48 @@ export async function resolveDispute(req, res) {
   const order = await Order.findById(dispute.orderId);
   if (!order) throw new ApiError(404, 'Order for this dispute no longer exists.');
 
-  const buyer = await User.findById(order.buyerId);
-  const seller = await User.findById(order.sellerId);
-
   // Resolve the financial + lifecycle outcome (pure, unit-tested). Under the
   // escrow model the funds are still held in the buyer's reserved balance, so
-  // the outcome splits that reserve — no clawbacks.
+  // the outcome splits that reserve — no clawbacks. Validate before opening a
+  // transaction so bad input fails cheaply.
   const outcome = resolveDisputeOutcome(order.amountReserved, resolution, refundAmount);
   if (!outcome.ok) throw new ApiError(outcome.code, outcome.message);
 
-  if (outcome.refundToBuyer > 0) {
-    await releaseReserved(buyer, outcome.refundToBuyer, order._id, `Dispute refund (${resolution})`);
-  }
-  if (outcome.toSeller > 0) {
-    await settlePayment(buyer, seller, outcome.toSeller, order._id);
-  }
+  // Escrow split, listing change, order status, and dispute closure all commit
+  // together. Docs are re-loaded inside so a transaction retry can't double-pay.
+  await runInTransaction(async (session) => {
+    const o = await Order.findById(order._id).session(session);
+    const buyer = await User.findById(o.buyerId).session(session);
+    const seller = await User.findById(o.sellerId).session(session);
 
-  // A full refund cancels the order, so the held units go back into stock;
-  // partial/release keep the sale, so the units stay spent.
-  const listingUpdate = { status: outcome.listingStatus };
-  if (outcome.restock) listingUpdate.$inc = { quantity: order.quantity };
-  await Listing.findByIdAndUpdate(order.listingId, listingUpdate);
+    if (outcome.refundToBuyer > 0) {
+      await releaseReserved(buyer, outcome.refundToBuyer, o._id, `Dispute refund (${resolution})`, session);
+    }
+    if (outcome.toSeller > 0) {
+      await settlePayment(buyer, seller, outcome.toSeller, o._id, session);
+    }
 
-  order.status = outcome.orderStatus;
-  order.statusHistory.push({
-    status: outcome.orderStatus,
-    note: note?.trim() || `Dispute resolved: ${resolution}`,
+    // A full refund cancels the order, so the held units go back into stock;
+    // partial/release keep the sale, so the units stay spent.
+    const listingUpdate = { status: outcome.listingStatus };
+    if (outcome.restock) listingUpdate.$inc = { quantity: o.quantity };
+    await Listing.findByIdAndUpdate(o.listingId, listingUpdate, { session });
+
+    o.status = outcome.orderStatus;
+    o.statusHistory.push({
+      status: outcome.orderStatus,
+      note: note?.trim() || `Dispute resolved: ${resolution}`,
+    });
+    await o.save({ session });
+
+    const d = await Dispute.findById(dispute._id).session(session);
+    d.status = resolution === 'none' ? 'rejected' : 'resolved';
+    d.resolution = resolution;
+    d.refundAmount = outcome.refundToBuyer;
+    d.resolvedBy = req.user.id;
+    d.resolvedAt = new Date();
+    await d.save({ session });
   });
-  await order.save();
-
-  dispute.status = resolution === 'none' ? 'rejected' : 'resolved';
-  dispute.resolution = resolution;
-  dispute.refundAmount = outcome.refundToBuyer;
-  dispute.resolvedBy = req.user.id;
-  dispute.resolvedAt = new Date();
-  await dispute.save();
 
   // Record the admin's closing note in the thread for both parties.
   await DisputeMessage.create({
@@ -206,5 +214,10 @@ export async function resolveDispute(req, res) {
   await notify(order.buyerId, 'dispute', summary, `/orders/${order._id}`);
   await notify(order.sellerId, 'dispute', summary, `/orders/${order._id}`);
 
-  res.json({ dispute, order });
+  // Return fresh docs reflecting the committed transaction.
+  const [updatedDispute, updatedOrder] = await Promise.all([
+    Dispute.findById(dispute._id),
+    Order.findById(order._id),
+  ]);
+  res.json({ dispute: updatedDispute, order: updatedOrder });
 }
