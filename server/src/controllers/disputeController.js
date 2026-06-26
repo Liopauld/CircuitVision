@@ -4,7 +4,7 @@ import { Order } from '../models/Order.js';
 import { Listing } from '../models/Listing.js';
 import { User } from '../models/User.js';
 import { ApiError } from '../middleware/errorHandler.js';
-import { refundSettledPayment } from '../services/walletService.js';
+import { releaseReserved, settlePayment } from '../services/walletService.js';
 import { notify } from '../services/notificationService.js';
 
 // A dispute can only be raised once the payment has settled but before the
@@ -161,17 +161,17 @@ export async function resolveDispute(req, res) {
   const buyer = await User.findById(order.buyerId);
   const seller = await User.findById(order.sellerId);
 
-  let amount = 0;
+  let refundToBuyer = 0;
   let orderStatus;
   let listingStatus;
 
   if (resolution === 'refund') {
-    amount = order.amountReserved;
+    refundToBuyer = order.amountReserved;
     orderStatus = 'cancelled';
     listingStatus = 'available';
   } else if (resolution === 'partial') {
-    amount = Number(refundAmount);
-    if (!amount || amount <= 0 || amount >= order.amountReserved) {
+    refundToBuyer = Number(refundAmount);
+    if (!refundToBuyer || refundToBuyer <= 0 || refundToBuyer >= order.amountReserved) {
       throw new ApiError(400, `Partial refund must be between 0 and ${order.amountReserved}.`);
     }
     orderStatus = 'completed';
@@ -182,8 +182,16 @@ export async function resolveDispute(req, res) {
     listingStatus = 'sold';
   }
 
-  if (amount > 0) {
-    await refundSettledPayment(seller, buyer, amount, order._id);
+  // Under the escrow model the funds are still held in the buyer's reserved
+  // balance (a dispute can only be raised before completion settles them).
+  // Split the escrow: refund the buyer's portion back to their spendable
+  // balance, and settle the remainder to the seller. No clawbacks needed.
+  const toSeller = order.amountReserved - refundToBuyer;
+  if (refundToBuyer > 0) {
+    await releaseReserved(buyer, refundToBuyer, order._id, `Dispute refund (${resolution})`);
+  }
+  if (toSeller > 0) {
+    await settlePayment(buyer, seller, toSeller, order._id);
   }
 
   await Listing.findByIdAndUpdate(order.listingId, { status: listingStatus });
@@ -197,7 +205,7 @@ export async function resolveDispute(req, res) {
 
   dispute.status = resolution === 'none' ? 'rejected' : 'resolved';
   dispute.resolution = resolution;
-  dispute.refundAmount = amount;
+  dispute.refundAmount = refundToBuyer;
   dispute.resolvedBy = req.user.id;
   dispute.resolvedAt = new Date();
   await dispute.save();

@@ -136,10 +136,10 @@ export async function transitionOrder(req, res) {
   }
 
   // Side effects on entering the new state.
+  // Escrow model: the buyer's funds stay reserved through the whole fulfilment
+  // and are only released to the seller when the buyer confirms completion.
+  // verify_payment merely acknowledges the buyer paid into escrow.
   if (rule.to === 'payment_verified') {
-    const buyer = await User.findById(order.buyerId);
-    const seller = await User.findById(order.sellerId);
-    await settlePayment(buyer, seller, order.amountReserved, order._id);
     order.paymentVerifiedAt = new Date();
   }
 
@@ -150,6 +150,10 @@ export async function transitionOrder(req, res) {
   }
 
   if (rule.to === 'completed') {
+    // Release escrow: settle the reserved funds to the seller for good.
+    const buyer = await User.findById(order.buyerId);
+    const seller = await User.findById(order.sellerId);
+    await settlePayment(buyer, seller, order.amountReserved, order._id);
     await Listing.findByIdAndUpdate(order.listingId, { status: 'sold' });
   }
 
