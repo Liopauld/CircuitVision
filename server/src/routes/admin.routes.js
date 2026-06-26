@@ -6,6 +6,7 @@ import {
   overrideCategory,
   adminListUsers,
   setUserBan,
+  setUserRole,
   adjustWallet,
   adminListOrders,
   adminListTransactions,
@@ -28,6 +29,7 @@ router.patch('/listings/:id/category', asyncHandler(overrideCategory));
 
 router.get('/users', asyncHandler(adminListUsers));
 router.post('/users/:id/ban', asyncHandler(setUserBan));
+router.post('/users/:id/role', asyncHandler(setUserRole));
 router.post('/users/:id/adjust', asyncHandler(adjustWallet));
 
 router.get('/orders', asyncHandler(adminListOrders));

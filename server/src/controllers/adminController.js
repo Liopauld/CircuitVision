@@ -76,6 +76,23 @@ export async function setUserBan(req, res) {
   res.json({ user: user.toPublicJSON() });
 }
 
+// POST /api/admin/users/:id/role  { role } — change a user's role (e.g. promote
+// a customer to seller) without editing the DB by hand.
+export async function setUserRole(req, res) {
+  const { role } = req.body;
+  if (!['customer', 'seller', 'admin'].includes(role)) {
+    throw new ApiError(400, 'Role must be customer, seller, or admin.');
+  }
+  const user = await User.findById(req.params.id);
+  if (!user) throw new ApiError(404, 'User not found.');
+  if (user.role === 'admin' && role !== 'admin') {
+    throw new ApiError(400, 'Cannot demote an admin account.');
+  }
+  user.role = role;
+  await user.save();
+  res.json({ user: user.toPublicJSON() });
+}
+
 // POST /api/admin/users/:id/adjust  { amount, description } — manual wallet fix.
 export async function adjustWallet(req, res) {
   const amount = Number(req.body.amount); // may be negative
@@ -113,19 +130,57 @@ export async function adminListTransactions(req, res) {
   res.json({ transactions });
 }
 
-// GET /api/admin/stats — inventory by category, sales volume, active users.
+// GET /api/admin/stats — platform analytics: inventory by category, GMV, active
+// users, a 7-day revenue trend, and the top sellers.
 export async function adminStats(req, res) {
-  const [byCategory, salesAgg, userCount, pendingCount] = await Promise.all([
-    Listing.aggregate([
-      { $group: { _id: '$category', count: { $sum: 1 } } },
-    ]),
-    Order.aggregate([
-      { $match: { status: 'completed' } },
-      { $group: { _id: null, volume: { $sum: '$amountReserved' }, count: { $sum: 1 } } },
-    ]),
-    User.countDocuments({ isBanned: false }),
-    Listing.countDocuments({ status: 'pending' }),
-  ]);
+  const since = new Date();
+  since.setDate(since.getDate() - 6);
+  since.setHours(0, 0, 0, 0);
+
+  const [byCategory, salesAgg, userCount, pendingCount, trendRaw, topRaw] =
+    await Promise.all([
+      Listing.aggregate([{ $group: { _id: '$category', count: { $sum: 1 } } }]),
+      Order.aggregate([
+        { $match: { status: 'completed' } },
+        { $group: { _id: null, volume: { $sum: '$amountReserved' }, count: { $sum: 1 } } },
+      ]),
+      User.countDocuments({ isBanned: false }),
+      Listing.countDocuments({ status: 'pending' }),
+      Order.aggregate([
+        { $match: { status: 'completed', updatedAt: { $gte: since } } },
+        {
+          $group: {
+            _id: { $dateToString: { format: '%Y-%m-%d', date: '$updatedAt' } },
+            revenue: { $sum: '$amountReserved' },
+          },
+        },
+      ]),
+      Order.aggregate([
+        { $match: { status: 'completed' } },
+        {
+          $group: {
+            _id: '$sellerId',
+            revenue: { $sum: '$amountReserved' },
+            units: { $sum: '$quantity' },
+          },
+        },
+        { $sort: { revenue: -1 } },
+        { $limit: 5 },
+        { $lookup: { from: 'users', localField: '_id', foreignField: '_id', as: 'seller' } },
+        { $unwind: '$seller' },
+        { $project: { _id: 0, sellerId: '$_id', name: '$seller.name', revenue: 1, units: 1 } },
+      ]),
+    ]);
+
+  // Dense 7-day trend (fill gaps with 0).
+  const trendMap = new Map(trendRaw.map((t) => [t._id, t.revenue]));
+  const revenueTrend = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    revenueTrend.push({ date: key, revenue: trendMap.get(key) || 0 });
+  }
 
   res.json({
     listingsByCategory: byCategory.reduce(
@@ -136,5 +191,7 @@ export async function adminStats(req, res) {
     salesVolume: salesAgg[0]?.volume || 0,
     activeUsers: userCount,
     pendingListings: pendingCount,
+    revenueTrend,
+    topSellers: topRaw,
   });
 }

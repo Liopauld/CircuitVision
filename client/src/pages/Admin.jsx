@@ -87,6 +87,47 @@ function Overview() {
             .join('  ·  ') || '—'}
         </div>
       </div>
+
+      <div className="panel" style={{ flexBasis: '100%', marginTop: '0.6rem' }}>
+        <h3 style={{ marginTop: 0 }}>Revenue · last 7 days</h3>
+        <PlatformTrend trend={data.revenueTrend || []} />
+      </div>
+
+      {data.topSellers?.length > 0 && (
+        <div className="panel" style={{ flexBasis: '100%' }}>
+          <h3 style={{ marginTop: 0 }}>Top sellers</h3>
+          {data.topSellers.map((s, i) => (
+            <div
+              key={s.sellerId}
+              style={{ display: 'flex', justifyContent: 'space-between', padding: '0.3rem 0' }}
+            >
+              <span>
+                {i + 1}. {s.name} <span className="muted small">· {s.units} sold</span>
+              </span>
+              <span className="mono">{peso(s.revenue)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PlatformTrend({ trend }) {
+  const peak = Math.max(1, ...trend.map((d) => d.revenue));
+  if (!trend.some((d) => d.revenue > 0)) {
+    return <p className="muted">No completed sales in the last 7 days.</p>;
+  }
+  return (
+    <div className="bar-chart">
+      {trend.map((d) => (
+        <div className="bar-col" key={d.date} title={`${d.date}: ${peso(d.revenue)}`}>
+          <div className="bar-track">
+            <div className="bar-fill" style={{ height: `${Math.round((d.revenue / peak) * 100)}%` }} />
+          </div>
+          <span className="bar-label">{d.date.slice(5)}</span>
+        </div>
+      ))}
     </div>
   );
 }
@@ -139,6 +180,11 @@ function Users() {
     await api.post(`/admin/users/${u.id}/ban`, { banned: !u.isBanned });
     reload();
   }
+  async function changeRole(u, role) {
+    if (role === u.role) return;
+    await api.post(`/admin/users/${u.id}/role`, { role });
+    reload();
+  }
   if (error) return <p className="error">{error}</p>;
   if (!data) return <div className="spinner" />;
   return (
@@ -160,7 +206,20 @@ function Users() {
                 {u.name}
                 <div className="muted small">{u.email}</div>
               </td>
-              <td style={{ textTransform: 'capitalize' }}>{u.role}</td>
+              <td>
+                {u.role === 'admin' ? (
+                  <span style={{ textTransform: 'capitalize' }}>{u.role}</span>
+                ) : (
+                  <select
+                    value={u.role}
+                    onChange={(e) => changeRole(u, e.target.value)}
+                    style={{ width: 'auto', marginTop: 0 }}
+                  >
+                    <option value="customer">customer</option>
+                    <option value="seller">seller</option>
+                  </select>
+                )}
+              </td>
               <td className="mono">{peso(u.walletBalance)}</td>
               <td>
                 {u.isBanned ? (
