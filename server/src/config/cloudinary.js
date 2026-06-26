@@ -37,4 +37,35 @@ export function uploadImageBuffer(buffer, folder = 'circuitvision/listings') {
   });
 }
 
+// Derive the Cloudinary public_id from a stored secure_url. Strips the
+// `/upload/`, an optional version segment (`v123456/`), and the extension:
+//   https://res.cloudinary.com/x/image/upload/v17/circuitvision/listings/ab.jpg
+//   -> circuitvision/listings/ab
+function publicIdFromUrl(url) {
+  const m = String(url).match(/\/upload\/(?:v\d+\/)?(.+)\.[a-zA-Z0-9]+$/);
+  return m ? m[1] : null;
+}
+
+/**
+ * Best-effort delete of uploaded images by their stored URLs. No-op when
+ * Cloudinary isn't configured (URLs are placeholders) or a URL isn't a
+ * Cloudinary asset. Never throws — image cleanup must not fail the request.
+ *
+ * @param {string[]} urls
+ */
+export async function deleteImagesByUrl(urls = []) {
+  if (!cloudinaryEnabled) return;
+  await Promise.all(
+    urls.map(async (url) => {
+      const publicId = publicIdFromUrl(url);
+      if (!publicId) return;
+      try {
+        await cloudinary.uploader.destroy(publicId, { resource_type: 'image' });
+      } catch {
+        /* best-effort: ignore individual failures */
+      }
+    })
+  );
+}
+
 export { cloudinaryEnabled };

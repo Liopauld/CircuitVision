@@ -6,7 +6,7 @@ import {
   listingExpiry,
 } from '../models/Listing.js';
 import { Order } from '../models/Order.js';
-import { uploadImageBuffer } from '../config/cloudinary.js';
+import { uploadImageBuffer, deleteImagesByUrl } from '../config/cloudinary.js';
 import { ApiError } from '../middleware/errorHandler.js';
 
 // Match for listings that should surface in public, browsable catalog rows.
@@ -258,9 +258,11 @@ export async function updateListing(req, res) {
   if (images.length === 0) {
     throw new ApiError(400, 'A listing must have at least one image.');
   }
+  const dropped = listing.cloudinaryUrl.filter((u) => !images.includes(u));
   listing.cloudinaryUrl = images.slice(0, 5);
 
   await listing.save();
+  await deleteImagesByUrl(dropped); // free storage for removed photos
   res.json({ listing });
 }
 
@@ -297,6 +299,10 @@ export async function deleteListing(req, res) {
   if (listing.status !== 'removed') {
     listing.status = 'removed';
     await listing.save();
+    // Free Cloudinary storage, but only when no order snapshots reference this
+    // listing — otherwise historical order thumbnails would break.
+    const hasOrders = await Order.exists({ listingId: listing._id });
+    if (!hasOrders) await deleteImagesByUrl(listing.cloudinaryUrl);
   }
   res.json({ ok: true });
 }
