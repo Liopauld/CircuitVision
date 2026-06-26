@@ -46,6 +46,9 @@ export default function ListingCard({ listing, index = 0 }) {
           </div>
           <p className="muted small" style={{ marginTop: '0.35rem' }}>
             {listing.condition} · {listing.quantity} in stock
+            {listing.sellerId?.ratingCount > 0 && (
+              <> · ⭐ {listing.sellerId.ratingAvg}</>
+            )}
           </p>
         </div>
       </Link>

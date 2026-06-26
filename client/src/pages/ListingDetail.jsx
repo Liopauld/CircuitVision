@@ -115,7 +115,15 @@ export default function ListingDetail() {
             {listing.status}
           </span>{' '}
           · {listing.condition} · {listing.quantity} in stock
-          {listing.sellerId?.name && <> · Sold by {listing.sellerId.name}</>}
+          {listing.sellerId?.name && (
+            <>
+              {' '}· Sold by{' '}
+              <Link to={`/sellers/${listing.sellerId._id}`} className="seller-link">
+                {listing.sellerId.name}
+                {listing.sellerId.ratingCount > 0 && <> ⭐ {listing.sellerId.ratingAvg}</>}
+              </Link>
+            </>
+          )}
         </p>
 
         {reviews.count > 0 && (

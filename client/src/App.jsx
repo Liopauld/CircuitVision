@@ -7,6 +7,7 @@ import ProtectedRoute from './components/ProtectedRoute.jsx';
 import PageTransition from './components/PageTransition.jsx';
 import Browse from './pages/Browse.jsx';
 import ListingDetail from './pages/ListingDetail.jsx';
+import Storefront from './pages/Storefront.jsx';
 import CreateListing from './pages/CreateListing.jsx';
 import EditListing from './pages/EditListing.jsx';
 import Dashboard from './pages/Dashboard.jsx';
@@ -44,6 +45,7 @@ export default function App() {
           <Routes location={location} key={location.pathname}>
             <Route path="/" element={wrap(<Browse />)} />
             <Route path="/listings/:id" element={wrap(<ListingDetail />)} />
+            <Route path="/sellers/:id" element={wrap(<Storefront />)} />
             <Route
               path="/listings/:id/edit"
               element={

@@ -3,6 +3,7 @@ import cors from 'cors';
 import { env } from './config/env.js';
 import { cloudinaryEnabled } from './config/cloudinary.js';
 import authRoutes from './routes/auth.routes.js';
+import userRoutes from './routes/user.routes.js';
 import listingRoutes from './routes/listing.routes.js';
 import walletRoutes from './routes/wallet.routes.js';
 import orderRoutes from './routes/order.routes.js';
@@ -38,6 +39,7 @@ export function createApp() {
   });
 
   app.use('/api/auth', authRoutes);
+  app.use('/api/users', userRoutes);
   app.use('/api/listings', listingRoutes);
   app.use('/api/wallet', walletRoutes);
   app.use('/api/orders', orderRoutes);

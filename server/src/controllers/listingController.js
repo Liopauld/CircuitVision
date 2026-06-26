@@ -62,7 +62,7 @@ export async function listListings(req, res) {
 
   const listings = await Listing.find(filter)
     .sort({ createdAt: -1 })
-    .populate('sellerId', 'name')
+    .populate('sellerId', 'name avatarUrl ratingAvg ratingCount')
     .lean();
 
   res.json({ listings });
@@ -97,7 +97,7 @@ export async function listHighlights(req, res) {
     _id: { $in: sales.map((s) => s._id) },
     ...liveMatch(),
   })
-    .populate('sellerId', 'name')
+    .populate('sellerId', 'name avatarUrl ratingAvg ratingCount')
     .lean();
   // Keep the aggregation's ranking order and attach the sold count for the UI.
   const bestSellers = sales
@@ -110,12 +110,12 @@ export async function listHighlights(req, res) {
     Listing.find(liveMatch())
       .sort({ viewCount: -1, createdAt: -1 })
       .limit(10)
-      .populate('sellerId', 'name')
+      .populate('sellerId', 'name avatarUrl ratingAvg ratingCount')
       .lean(),
     Listing.find(liveMatch())
       .sort({ createdAt: -1 })
       .limit(10)
-      .populate('sellerId', 'name')
+      .populate('sellerId', 'name avatarUrl ratingAvg ratingCount')
       .lean(),
   ]);
 
@@ -128,7 +128,7 @@ export async function getListing(req, res) {
     req.params.id,
     { $inc: { viewCount: 1 } },
     { new: true }
-  ).populate('sellerId', 'name');
+  ).populate('sellerId', 'name avatarUrl ratingAvg ratingCount');
 
   if (!listing) throw new ApiError(404, 'Listing not found.');
   res.json({ listing });

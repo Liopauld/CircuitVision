@@ -301,6 +301,18 @@ h1 {
   border-color: var(--text);
   box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--border-hi);
 }
+.seller-link {
+  color: var(--copper-bright);
+  font-weight: 600;
+}
+.seller-link:hover {
+  text-decoration: underline;
+}
+.storefront-hero {
+  display: flex;
+  gap: 1.1rem;
+  align-items: center;
+}
 
 /* ===== Mobile bottom tab bar (app-like) ===== */
 .tabbar {

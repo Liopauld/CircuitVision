@@ -55,7 +55,10 @@ export default function Spotlight({ items = [] }) {
             </span>
             <h2>{item.title}</h2>
             {item.sellerId?.name && (
-              <p className="muted small">Sold by {item.sellerId.name}</p>
+              <p className="muted small">
+                Sold by {item.sellerId.name}
+                {item.sellerId.ratingCount > 0 && <> · ⭐ {item.sellerId.ratingAvg}</>}
+              </p>
             )}
             <div className="spotlight-price">{peso(item.price)}</div>
             <Link to={`/listings/${item._id}`} className="btn">
