@@ -10,6 +10,8 @@
  */
 import bcrypt from 'bcryptjs';
 import mongoose from 'mongoose';
+import { fileURLToPath } from 'node:url';
+import { realpathSync } from 'node:fs';
 import { connectDb } from './config/db.js';
 import { User } from './models/User.js';
 import { Listing, listingExpiry } from './models/Listing.js';
@@ -242,7 +244,21 @@ async function run() {
   process.exit(0);
 }
 
-run().catch((err) => {
-  console.error('[seed] failed:', err);
-  process.exit(1);
-});
+// Only wipe + reseed when run directly (`node src/seed.js` / `npm run seed`),
+// never when this module is merely imported — importing must have no side
+// effects, so a stray `import('./seed.js')` can't destroy the database.
+function isMainModule() {
+  if (!process.argv[1]) return false;
+  try {
+    return fileURLToPath(import.meta.url) === realpathSync(process.argv[1]);
+  } catch {
+    return false;
+  }
+}
+
+if (isMainModule()) {
+  run().catch((err) => {
+    console.error('[seed] failed:', err);
+    process.exit(1);
+  });
+}
