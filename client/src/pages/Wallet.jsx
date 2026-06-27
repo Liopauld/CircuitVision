@@ -10,26 +10,45 @@ export default function Wallet() {
   const { refreshUser } = useAuth();
   const [wallet, setWallet] = useState({ walletBalance: 0, reservedBalance: 0 });
   const [txs, setTxs] = useState([]);
+  const [daily, setDaily] = useState(null);
   const [amount, setAmount] = useState('');
   const [error, setError] = useState('');
   const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState(false);
+  const [claiming, setClaiming] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     try {
-      const [w, t] = await Promise.all([
+      const [w, t, d] = await Promise.all([
         api.get('/wallet'),
         api.get('/wallet/transactions'),
+        api.get('/wallet/daily'),
       ]);
       setWallet(w.data);
       setTxs(t.data.transactions);
+      setDaily(d.data);
     } catch (err) {
       setError(apiError(err));
     } finally {
       setLoading(false);
     }
   }, []);
+
+  async function claimDaily() {
+    setClaiming(true);
+    setError('');
+    setMsg('');
+    try {
+      const { data } = await api.post('/wallet/daily');
+      setMsg(`🎁 Claimed ${peso(data.amount)} — day ${data.streak} streak!`);
+      await Promise.all([load(), refreshUser()]);
+    } catch (err) {
+      setError(apiError(err));
+    } finally {
+      setClaiming(false);
+    }
+  }
 
   useEffect(() => {
     load();
@@ -74,6 +93,22 @@ export default function Wallet() {
           </div>
         </div>
       </div>
+
+      {daily && (
+        <div className={`daily-card ${daily.claimable ? 'ready' : ''}`}>
+          <span className="daily-icon">🎁</span>
+          <div style={{ flex: 1 }}>
+            <strong>Daily reward</strong>
+            <div className="muted small">
+              {daily.streak > 0 ? `🔥 ${daily.streak}-day streak` : 'Start a streak today'}
+              {daily.claimable ? ` · claim ${peso(daily.amount)}` : ' · come back tomorrow'}
+            </div>
+          </div>
+          <button className="btn sm" onClick={claimDaily} disabled={!daily.claimable || claiming}>
+            {claiming ? '…' : daily.claimable ? `Claim ${peso(daily.amount)}` : 'Claimed'}
+          </button>
+        </div>
+      )}
 
       <div className="panel" style={{ marginTop: '1.2rem' }}>
         <h2 style={{ marginTop: 0 }}>Top up</h2>

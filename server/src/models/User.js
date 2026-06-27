@@ -42,6 +42,10 @@ const userSchema = new mongoose.Schema(
     // Favourited listings (wishlist).
     favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Listing' }],
 
+    // Daily-reward retention hook.
+    lastDailyReward: { type: Date, default: null },
+    dailyStreak: { type: Number, default: 0 },
+
     // Wallet fields are seeded now so later phases (orders, top-ups) need no
     // migration. They are not exposed in the Phase 1 UI.
     walletBalance: { type: Number, default: 500 },
@@ -64,6 +68,7 @@ userSchema.methods.toPublicJSON = function toPublicJSON() {
     ratingAvg: this.ratingAvg,
     ratingCount: this.ratingCount,
     favorites: this.favorites,
+    lastDailyReward: this.lastDailyReward,
     isVerified: this.isVerified,
     isBanned: this.isBanned,
     walletBalance: this.walletBalance,

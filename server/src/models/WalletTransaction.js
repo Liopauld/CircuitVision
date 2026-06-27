@@ -8,6 +8,7 @@ export const TX_TYPES = [
   'credit', // funds paid to seller on payment verification
   'refund', // funds returned after a dispute/admin action
   'adjustment', // manual admin adjustment
+  'bonus', // daily login reward / promo credit
 ];
 
 const walletTransactionSchema = new mongoose.Schema(

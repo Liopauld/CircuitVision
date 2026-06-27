@@ -338,6 +338,32 @@ h1 {
   align-items: center;
 }
 
+/* Daily reward card */
+.daily-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+  padding: var(--space-4);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+.daily-card.ready {
+  border-color: var(--copper-bright);
+  background: linear-gradient(160deg, rgba(201, 138, 58, 0.18), var(--surface));
+}
+.daily-icon {
+  font-size: 1.8rem;
+}
+.daily-card.ready .daily-icon {
+  animation: daily-bob 1.4s var(--ease) infinite;
+}
+@keyframes daily-bob {
+  0%, 100% { transform: translateY(0) rotate(-4deg); }
+  50% { transform: translateY(-3px) rotate(4deg); }
+}
+
 /* Standalone component scanner */
 .scan-hero {
   text-align: center;
@@ -1639,6 +1665,13 @@ label {
   color: #061018;
   background: var(--magenta);
   border-radius: 999px;
+}
+.nav-badge.gift {
+  background: none;
+  min-width: 0;
+  height: auto;
+  padding: 0;
+  font-size: 0.95rem;
 }
 .tab-icon-wrap {
   position: relative;

@@ -46,7 +46,15 @@ export default function Navbar() {
             {unread > 0 && <span className="nav-badge">{unread}</span>}
           </NavLink>
         )}
-        {user && <NavLink to="/wallet">Wallet</NavLink>}
+        {user && (
+          <NavLink to="/wallet" className="nav-msg">
+            Wallet
+            {(!user.lastDailyReward ||
+              Date.now() - new Date(user.lastDailyReward).getTime() >= 86400000) && (
+              <span className="nav-badge gift">🎁</span>
+            )}
+          </NavLink>
+        )}
         {user && (
           <NavLink to="/notifications" className="nav-msg">
             Alerts

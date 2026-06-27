@@ -114,4 +114,5 @@ export const TX_META = {
   credit: { sign: '+', label: 'Sale', glyph: '←' },
   refund: { sign: '+', label: 'Refund', glyph: '↩' },
   adjustment: { sign: '±', label: 'Adjustment', glyph: '⚙' },
+  bonus: { sign: '+', label: 'Daily reward', glyph: '🎁' },
 };
