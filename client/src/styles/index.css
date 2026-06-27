@@ -314,6 +314,81 @@ h1 {
   align-items: center;
 }
 
+/* Standalone component scanner */
+.scan-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin: 0.8rem 0 1rem;
+}
+.scan-verdict {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.8rem;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(160deg, rgba(76, 175, 125, 0.16), var(--surface));
+  border: 1px solid var(--border-hi);
+}
+.scan-verdict.dim {
+  background: var(--surface);
+}
+.scan-verdict-title {
+  font-size: 1.4rem;
+  font-weight: 800;
+}
+.scan-stage {
+  position: relative;
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid var(--border-hi);
+  background: #000;
+  aspect-ratio: 3 / 4;
+  max-height: 70vh;
+}
+.scan-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.scan-overlay {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  right: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: var(--radius-sm);
+  background: rgba(7, 18, 13, 0.72);
+  backdrop-filter: blur(8px);
+  border: 1.5px solid var(--copper-bright);
+}
+.scan-overlay.dim {
+  border-color: var(--border-hi);
+}
+.scan-overlay-sub {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+}
+.scan-live-dot {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #ff5d73;
+  box-shadow: 0 0 0 rgba(255, 93, 115, 0.6);
+  animation: scan-pulse 1.4s infinite;
+}
+@keyframes scan-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(255, 93, 115, 0.55); }
+  100% { box-shadow: 0 0 0 10px rgba(255, 93, 115, 0); }
+}
+
 /* Component auto-detect hint on the create form */
 .scan-hint {
   margin: 0.1rem 0 0.7rem;

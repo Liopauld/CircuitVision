@@ -32,6 +32,7 @@ export default function Navbar() {
         </NavLink>
         {canSell && <NavLink to="/dashboard">Dashboard</NavLink>}
         {canSell && <NavLink to="/create">Sell</NavLink>}
+        {user && <NavLink to="/scan">Scan</NavLink>}
         {user && (
           <NavLink to="/saved" className="nav-msg">
             Saved
