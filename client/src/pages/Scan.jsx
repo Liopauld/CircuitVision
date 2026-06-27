@@ -3,6 +3,9 @@ import { api, apiError } from '../api/client.js';
 import { CATEGORIES } from '../constants.js';
 
 const catLabel = (v) => CATEGORIES.find((c) => c.value === v)?.label || v;
+// The classifier's "not a board" class — show it as a clear message, not a label.
+const NULL_LABELS = ['null', 'none', 'background', 'unknown', 'nothing'];
+const isNullClass = (label) => !!label && NULL_LABELS.includes(String(label).toLowerCase());
 const SAMPLE_MS = 600; // how often live mode samples a frame
 const MAX_DIM = 640; // downscale frames to this max edge before sending (faster)
 const SMOOTH_N = 6; // number of recent live predictions to smooth over
@@ -165,10 +168,17 @@ export default function Scan() {
                 </div>
               ) : (
                 <div className="scan-verdict dim">
-                  <span className="scan-verdict-title">Not recognized</span>
+                  <span className="scan-verdict-title">
+                    {isNullClass(result.label) ? 'No board detected' : 'Not recognized'}
+                  </span>
                   <span className="muted small">
-                    {result.error ||
-                      (result.label ? `Closest: ${result.label} (${pct}%)` : 'Not an ESP32 / Pi / Arduino')}
+                    {result.error
+                      ? result.error
+                      : isNullClass(result.label)
+                        ? `${pct}% sure it isn't an ESP32 / Pi / Arduino`
+                        : result.label
+                          ? `Closest: ${result.label} (${pct}%)`
+                          : 'Not an ESP32 / Pi / Arduino'}
                   </span>
                 </div>
               )}

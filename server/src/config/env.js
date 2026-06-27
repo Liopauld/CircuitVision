@@ -39,7 +39,7 @@ export const env = {
   // workspace/workflow default to the project's trained classifier; only the
   // API key is secret and must come from the environment.
   roboflow: {
-    apiUrl: process.env.ROBOFLOW_API_URL || 'http://localhost:9001',
+    apiUrl: process.env.ROBOFLOW_API_URL || 'https://serverless.roboflow.com',
     apiKey: process.env.ROBOFLOW_API_KEY || '',
     workspace: process.env.ROBOFLOW_WORKSPACE || 'julianes-workspace',
     workflowId: process.env.ROBOFLOW_WORKFLOW_ID || 'arvision-dfktg',
