@@ -21,21 +21,26 @@ function normalizeCategory(label) {
 }
 
 // Roboflow workflow outputs vary by how the workflow is wired, so walk the
-// response and pick the highest-confidence prediction we can find — supporting
-// both classification ({ top, confidence } / predicted_classes) and
+// whole response and pick the highest-confidence prediction we can find —
+// supporting classification ({ top, confidence } / { class, confidence }) and
 // detection-style ({ predictions: [{ class, confidence }] }) shapes.
 function extractTopPrediction(data) {
   let best = { label: null, confidence: 0 };
+  const consider = (label, confidence) => {
+    if (typeof label === 'string' && typeof confidence === 'number' && confidence >= best.confidence) {
+      best = { label, confidence };
+    }
+  };
   const visit = (node) => {
     if (!node || typeof node !== 'object') return;
-    if (typeof node.top === 'string' && typeof node.confidence === 'number') {
-      if (node.confidence >= best.confidence) best = { label: node.top, confidence: node.confidence };
-    }
+    // Classification block: { top, confidence } or a single { class, confidence }.
+    consider(node.top, node.confidence);
+    consider(node.class, node.confidence);
+    consider(node.predicted_class, node.confidence);
+    // Array of predictions: [{ class, confidence }, ...].
     if (Array.isArray(node.predictions)) {
       for (const p of node.predictions) {
-        if (p && typeof p.class === 'string' && typeof p.confidence === 'number' && p.confidence >= best.confidence) {
-          best = { label: p.class, confidence: p.confidence };
-        }
+        if (p && typeof p === 'object') consider(p.class ?? p.top, p.confidence);
       }
     }
     for (const key of Object.keys(node)) visit(node[key]);
@@ -72,7 +77,15 @@ export async function classifyComponent(buffer) {
       signal: AbortSignal.timeout(20000),
     });
     if (!res.ok) {
-      return { enabled: true, suggestedCategory: null, confidence: 0, label: null };
+      const body = await res.text().catch(() => '');
+      return {
+        enabled: true,
+        suggestedCategory: null,
+        confidence: 0,
+        label: null,
+        error: `Inference server returned HTTP ${res.status}.`,
+        detail: env.isProduction ? undefined : body.slice(0, 600),
+      };
     }
     const data = await res.json();
     const { label, confidence } = extractTopPrediction(data);
@@ -81,12 +94,21 @@ export async function classifyComponent(buffer) {
       suggestedCategory: normalizeCategory(label),
       confidence: Math.round(confidence * 100) / 100,
       label,
+      // Flag the case where we got a response but couldn't find a prediction.
+      error: label ? undefined : 'No prediction found in the workflow output.',
       // Surface the raw workflow output in dev so the output shape can be
       // confirmed / the parser tuned without guessing.
       raw: env.isProduction ? undefined : data,
     };
-  } catch {
-    // Network error / inference server down / timeout — degrade gracefully.
-    return { enabled: true, suggestedCategory: null, confidence: 0, label: null };
+  } catch (err) {
+    // Network error / inference server down / timeout — report it so the UI
+    // can tell the user instead of silently saying "not recognized".
+    return {
+      enabled: true,
+      suggestedCategory: null,
+      confidence: 0,
+      label: null,
+      error: `Could not reach the inference server at ${apiUrl}: ${err.message}`,
+    };
   }
 }

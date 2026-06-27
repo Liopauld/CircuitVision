@@ -3,29 +3,14 @@ import { api, apiError } from '../api/client.js';
 import { CATEGORIES } from '../constants.js';
 
 const catLabel = (v) => CATEGORIES.find((c) => c.value === v)?.label || v;
-const SAMPLE_MS = 800; // how often the live mode samples a frame
-
-// Turn a /api/scan response into a friendly verdict.
-function verdict(result) {
-  if (!result) return null;
-  if (result.enabled === false) {
-    return { title: 'Scanning is off', detail: 'The component scanner isn’t configured.', dim: true };
-  }
-  const pct = Math.round((result.confidence || 0) * 100);
-  if (result.suggestedCategory) {
-    return { title: catLabel(result.suggestedCategory), detail: `${pct}% confident`, pct };
-  }
-  return {
-    title: 'Not recognized',
-    detail: result.label ? `Closest: ${result.label} (${pct}%)` : 'Not an ESP32 / Pi / Arduino',
-    dim: true,
-    pct,
-  };
-}
+const SAMPLE_MS = 600; // how often live mode samples a frame
+const MAX_DIM = 640; // downscale frames to this max edge before sending (faster)
+const SMOOTH_N = 6; // number of recent live predictions to smooth over
 
 export default function Scan() {
   const [mode, setMode] = useState('upload'); // 'upload' | 'live'
-  const [result, setResult] = useState(null);
+  const [result, setResult] = useState(null); // latest raw /api/scan response
+  const [smooth, setSmooth] = useState(null); // smoothed live verdict
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -34,6 +19,7 @@ export default function Scan() {
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
   const inFlight = useRef(false);
+  const historyRef = useRef([]);
 
   async function scanBlob(blob) {
     const fd = new FormData();
@@ -58,14 +44,30 @@ export default function Scan() {
     }
   }
 
-  // Live camera: stream to a <video>, sample a frame on an interval, and POST
-  // it (skipping while a request is in flight) for a rolling prediction.
+  // Majority-vote smoothing so the live verdict doesn't flicker frame to frame.
+  function recordPrediction(data) {
+    setResult(data);
+    const h = historyRef.current;
+    h.push(data.suggestedCategory || null);
+    if (h.length > SMOOTH_N) h.shift();
+    const counts = {};
+    for (const c of h) if (c) counts[c] = (counts[c] || 0) + 1;
+    const top = Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0];
+    if (!top) {
+      setSmooth(null);
+      return;
+    }
+    setSmooth({ category: top, votes: counts[top], total: h.length, confidence: data.confidence });
+  }
+
   useEffect(() => {
     if (mode !== 'live') return undefined;
     let cancelled = false;
     let timer;
     setResult(null);
+    setSmooth(null);
     setError('');
+    historyRef.current = [];
 
     (async () => {
       try {
@@ -101,14 +103,16 @@ export default function Scan() {
     const video = videoRef.current;
     const canvas = canvasRef.current;
     if (!video || !canvas || !video.videoWidth) return;
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    canvas.getContext('2d').drawImage(video, 0, 0);
+    // Downscale so each frame is small/fast to send + infer.
+    const scale = Math.min(1, MAX_DIM / Math.max(video.videoWidth, video.videoHeight));
+    canvas.width = Math.round(video.videoWidth * scale);
+    canvas.height = Math.round(video.videoHeight * scale);
+    canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
     const blob = await new Promise((res) => canvas.toBlob(res, 'image/jpeg', 0.7));
     if (!blob) return;
     inFlight.current = true;
     try {
-      setResult(await scanBlob(blob));
+      recordPrediction(await scanBlob(blob));
     } catch {
       /* transient frame error — ignore */
     } finally {
@@ -116,7 +120,7 @@ export default function Scan() {
     }
   }
 
-  const v = verdict(result);
+  const pct = result ? Math.round((result.confidence || 0) * 100) : 0;
 
   return (
     <div>
@@ -149,10 +153,28 @@ export default function Scan() {
             style={{ display: 'none' }}
             onChange={onPick}
           />
-          {v && (
-            <div className={`scan-verdict ${v.dim ? 'dim' : ''}`} style={{ marginTop: '1rem' }}>
-              <span className="scan-verdict-title">{v.title}</span>
-              <span className="muted small">{v.detail}</span>
+          {result && (
+            <div className="scan-result" style={{ marginTop: '1rem' }}>
+              {result.suggestedCategory ? (
+                <div className="scan-verdict">
+                  <span className="scan-verdict-title">{catLabel(result.suggestedCategory)}</span>
+                  <span className="muted small">{pct}% confident</span>
+                  <div className="scan-bar">
+                    <div className="scan-bar-fill" style={{ width: `${pct}%` }} />
+                  </div>
+                </div>
+              ) : (
+                <div className="scan-verdict dim">
+                  <span className="scan-verdict-title">Not recognized</span>
+                  <span className="muted small">
+                    {result.error ||
+                      (result.label ? `Closest: ${result.label} (${pct}%)` : 'Not an ESP32 / Pi / Arduino')}
+                  </span>
+                </div>
+              )}
+              {result.detail && (
+                <pre className="scan-debug">{result.detail}</pre>
+              )}
             </div>
           )}
         </div>
@@ -161,13 +183,22 @@ export default function Scan() {
           {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
           <video ref={videoRef} className="scan-video" playsInline muted />
           <canvas ref={canvasRef} style={{ display: 'none' }} />
-          {v && (
-            <div className={`scan-overlay ${v.dim ? 'dim' : ''}`}>
-              <span className="scan-verdict-title">{v.title}</span>
-              {v.detail && <span className="scan-overlay-sub">{v.detail}</span>}
-            </div>
-          )}
+          <div className="scan-guide" />
           <span className="scan-live-dot" />
+          <div className={`scan-overlay ${smooth ? '' : 'dim'}`}>
+            {smooth ? (
+              <>
+                <span className="scan-verdict-title">{catLabel(smooth.category)}</span>
+                <span className="scan-overlay-sub">
+                  {pct}% · {smooth.votes}/{smooth.total} frames
+                </span>
+              </>
+            ) : (
+              <span className="scan-overlay-sub">
+                {result?.error ? result.error : 'Point at a board…'}
+              </span>
+            )}
+          </div>
         </div>
       )}
     </div>

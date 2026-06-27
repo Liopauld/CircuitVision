@@ -336,6 +336,39 @@ h1 {
   font-size: 1.4rem;
   font-weight: 800;
 }
+.scan-bar {
+  height: 7px;
+  border-radius: 4px;
+  background: var(--surface-hi);
+  overflow: hidden;
+  margin-top: 0.4rem;
+}
+.scan-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--copper), var(--copper-bright));
+  transition: width 0.3s ease;
+}
+.scan-debug {
+  margin-top: 0.7rem;
+  padding: 0.6rem;
+  border-radius: var(--radius-sm);
+  background: #0a1410;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-align: left;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 160px;
+  overflow: auto;
+}
+.scan-guide {
+  position: absolute;
+  inset: 18% 14%;
+  border: 2px dashed rgba(232, 183, 101, 0.55);
+  border-radius: var(--radius);
+  pointer-events: none;
+}
 .scan-stage {
   position: relative;
   border-radius: var(--radius);
