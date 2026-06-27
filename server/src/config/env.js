@@ -35,6 +35,15 @@ export const env = {
     from: process.env.MAIL_FROM || 'CircuitVision <no-reply@circuitvision.test>',
     smtpUrl: process.env.SMTP_URL || '',
   },
+  // Roboflow component scanning (local inference server + workflow). The
+  // workspace/workflow default to the project's trained classifier; only the
+  // API key is secret and must come from the environment.
+  roboflow: {
+    apiUrl: process.env.ROBOFLOW_API_URL || 'http://localhost:9001',
+    apiKey: process.env.ROBOFLOW_API_KEY || '',
+    workspace: process.env.ROBOFLOW_WORKSPACE || 'julianes-workspace',
+    workflowId: process.env.ROBOFLOW_WORKFLOW_ID || 'arvision-dfktg',
+  },
 };
 
 // True only when an SMTP transport is configured. When false, the mailer logs
@@ -42,6 +51,11 @@ export const env = {
 // so dev flows are testable without a real inbox — mirroring the Cloudinary
 // fallback pattern.
 export const mailerEnabled = Boolean(env.mail.smtpUrl);
+
+// Component scanning is available only when an API key is configured. When
+// false, POST /api/scan reports it's unavailable and the create form falls
+// back to manual category selection.
+export const roboflowEnabled = Boolean(env.roboflow.apiKey);
 
 // True only when all three Cloudinary credentials are present. When false,
 // the image upload helper falls back to a stubbed placeholder URL so the app

@@ -314,6 +314,15 @@ h1 {
   align-items: center;
 }
 
+/* Component auto-detect hint on the create form */
+.scan-hint {
+  margin: 0.1rem 0 0.7rem;
+  font-size: 0.9rem;
+}
+.scan-hint strong {
+  color: var(--copper-bright);
+}
+
 /* Email-verification banner */
 .verify-banner {
   display: flex;

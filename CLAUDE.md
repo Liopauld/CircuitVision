@@ -68,6 +68,10 @@ Flow: `awaiting_payment → payment_submitted → payment_verified → preparing
 
 `config/env.js` exposes `cloudinaryEnabled` (true only if all three creds present). When false, the upload helper returns a placeholder URL so the whole app runs end-to-end without a Cloudinary account. Only the image **URL** is stored in Mongo. Don't add hard dependencies on Cloudinary being configured.
 
+### Component scanning (Roboflow) is optional by design
+
+Same fallback pattern: `config/env.js` exposes `roboflowEnabled` (true only when `ROBOFLOW_API_KEY` is set). `services/roboflowService.js` POSTs the image (base64) to a Roboflow **workflow** inference server (`POST {ROBOFLOW_API_URL}/infer/workflows/{workspace}/{workflowId}`) and parses the result defensively into `{ suggestedCategory, confidence }`; `POST /api/scan` (seller/admin) exposes it, and `CreateListing` auto-fills the category from the first photo (≥0.4 confidence) with manual override. It never throws — a disabled/unreachable scanner just yields a null suggestion. In dev the raw workflow output is returned so the parser can be tuned to the actual output shape.
+
 ### Client
 
 - `src/api/client.js` is the single axios instance: a request interceptor attaches the JWT from `localStorage` (`cv_token`), and a response interceptor on `401` clears the token and dispatches a `cv:unauthorized` window event (decouples API layer from `AuthContext`). Use `apiError(err)` to extract a display message.
@@ -80,4 +84,5 @@ Flow: `awaiting_payment → payment_submitted → payment_verified → preparing
 - **Messaging is fully built (backend + client).** 1:1 conversations optionally anchored to a listing; `Messages` (list) and `Conversation` (thread) pages, "Message seller/buyer" buttons on listing/order detail, and an unread badge in the nav/tab bar backed by `context/MessagesContext.jsx` (light polling of `/messages/unread-count`).
 - Roles are chosen at signup (customer or seller); admins exist only via the seed script or promotion, never public signup. Sellers can also buy.
 - **Email verification & password recovery are built.** Token-based, hashed (sha256) tokens with expiry on `User`; `POST /auth/verify/request|verify` and `POST /auth/password/forgot|reset`. Uses a **mock mailer** (`services/mailService.js`): with no `SMTP_URL` it logs the link to the console and returns it in dev API responses (`devLink`). Sensitive auth routes are rate-limited (`middleware/rateLimit.js`). Client: app-wide verify banner, `/verify`, `/forgot`, `/reset` pages.
-- Deferred / not built: Roboflow component scanning; a real SMTP transport (the mock mailer stands in).
+- **Roboflow component scanning is built** (behind `ROBOFLOW_API_KEY`) — see "Component scanning" above.
+- Deferred / not built: a real SMTP transport (the mock mailer stands in).

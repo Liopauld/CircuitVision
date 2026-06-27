@@ -50,12 +50,20 @@ Last updated: 2026-06-27.
 ## ⏸ Deferred
 
 - **Real SMTP transport** — the mock mailer stands in; a real provider drops into `services/mailService.js` with no call-site changes.
-- **Roboflow component scanning** — auto-classify a photographed component on the create-listing form. Pushed back pending dataset collection + model training; build steps documented below.
 
-**Roboflow plan when resumed:**
-1. Roboflow **Classification** project, classes: `esp32`, `raspi`, `arduino`, `sensor`, `display`, `module`, `unknown`.
-2. Collect 50–100 images/class, label, train (Roboflow 3.0 fast).
-3. Server `POST /api/scan` → hosted inference → `{ suggestedCategory, confidence }`; low confidence ⇒ user picks manually.
-4. Client: auto-fill the category picker on image select in `CreateListing`.
+---
 
-Server env (when ready): `ROBOFLOW_API_KEY`, `ROBOFLOW_MODEL_ID`.
+## 🔬 Roboflow component scanning — done (behind config)
+
+Auto-classify a photographed component into a category on the create-listing
+form, via a Roboflow **workflow** inference server.
+
+- Server `POST /api/scan` (seller/admin) → `services/roboflowService.js` posts
+  the image (base64) to `{ROBOFLOW_API_URL}/infer/workflows/{workspace}/{workflowId}`
+  → `{ suggestedCategory, confidence }`. Output parsing is defensive (the
+  workflow's output shape varies); the raw output is returned in dev.
+- Client: `CreateListing` scans the first photo on select and pre-fills the
+  category at ≥0.4 confidence, with manual override. esp32 / raspi / arduino,
+  else null ⇒ user picks.
+- Enabled when `ROBOFLOW_API_KEY` is set (with `ROBOFLOW_API_URL`,
+  `ROBOFLOW_WORKSPACE`, `ROBOFLOW_WORKFLOW_ID`); disabled ⇒ manual selection.

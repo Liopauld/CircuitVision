@@ -18,6 +18,31 @@ export default function CreateListing() {
   const [photos, setPhotos] = useState([]);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  // Component auto-detection state: null | { busy } | { applied, category, confidence } | { failed }
+  const [scan, setScan] = useState(null);
+
+  const SCAN_THRESHOLD = 0.4;
+  const catLabel = (v) => CATEGORIES.find((c) => c.value === v)?.label || v;
+
+  // Ask the server to classify a photo and, when confident, pre-select the
+  // category. Best-effort — silent when scanning is disabled or fails.
+  async function runScan(file) {
+    setScan({ busy: true });
+    try {
+      const fd = new FormData();
+      fd.append('image', file);
+      const { data } = await api.post('/scan', fd);
+      if (!data.enabled) return setScan(null);
+      if (data.suggestedCategory && data.confidence >= SCAN_THRESHOLD) {
+        setForm((f) => ({ ...f, category: data.suggestedCategory }));
+        setScan({ applied: true, category: data.suggestedCategory, confidence: data.confidence });
+      } else {
+        setScan({ failed: true });
+      }
+    } catch {
+      setScan({ failed: true });
+    }
+  }
 
   // Revoke any outstanding object URLs only when leaving the page (a ref keeps
   // the cleanup pointed at the latest list without re-running on every change).
@@ -40,6 +65,8 @@ export default function CreateListing() {
     const added = incoming
       .slice(0, room)
       .map((file) => ({ file, url: URL.createObjectURL(file) }));
+    // Auto-detect the category from the first photo added.
+    if (photos.length === 0 && added.length > 0) runScan(added[0].file);
     setPhotos((prev) => [...prev, ...added]);
   }
 
@@ -113,6 +140,21 @@ export default function CreateListing() {
             </select>
           </label>
         </div>
+
+        {scan?.busy && (
+          <p className="scan-hint muted small">🔍 Detecting component from your photo…</p>
+        )}
+        {scan?.applied && (
+          <p className="scan-hint">
+            ✓ Detected <strong>{catLabel(scan.category)}</strong> ({Math.round(scan.confidence * 100)}%) —
+            set as category. Change it above if it's wrong.
+          </p>
+        )}
+        {scan?.failed && (
+          <p className="scan-hint muted small">
+            Couldn't auto-detect the component — please pick a category.
+          </p>
+        )}
 
         <div className="row">
           <label>
