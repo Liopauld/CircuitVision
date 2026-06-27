@@ -38,10 +38,34 @@
   /* Text — silkscreen ink */
   --text: #eef3ea;
   --muted: #8aa394;
-  --text-dim: #5e7567;
+  --text-dim: #7d9789; /* lifted to ~4.6:1 on --bg (was #5e7567, failed AA) */
 
   --radius: 14px;
   --radius-sm: 9px;
+
+  /* Spacing scale — one rhythm everywhere (replaces ad-hoc inline margins) */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-8: 3rem;
+
+  /* Type scale — discrete steps instead of ~25 ad-hoc font-sizes */
+  --fs-xs: 0.72rem;
+  --fs-sm: 0.85rem;
+  --fs-md: 1rem;
+  --fs-lg: 1.2rem;
+  --fs-xl: 1.5rem;
+  --fs-2xl: 2rem;
+  --fs-3xl: 2.5rem;
+
+  /* Motion — shared easing + durations so animations feel like one hand */
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-fast: 0.15s;
+  --dur: 0.28s;
+  --dur-slow: 0.5s;
   --glow-cyan: 0 0 0 1px rgba(232, 183, 101, 0.16), 0 8px 22px rgba(0, 0, 0, 0.45);
   --glow-violet: 0 0 0 1px rgba(201, 138, 58, 0.16), 0 8px 22px rgba(0, 0, 0, 0.45);
 
@@ -1500,6 +1524,27 @@ label {
 }
 .table-wrap {
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+/* Token-driven layout helpers to replace ad-hoc inline flex/margins. */
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.cluster {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+@media (max-width: 600px) {
+  .data-table th,
+  .data-table td {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+    font-size: var(--fs-xs);
+  }
 }
 .thumb {
   width: 48px;
