@@ -38,9 +38,17 @@ export default function Scan() {
       return undefined;
     }
     let active = true;
+    // Pull a popular pool for the category, then rank "best match": highest
+    // seller rating first, popularity (views) as the tiebreak. Take the top 6.
     api
-      .get('/listings', { params: { category: activeCategory, limit: 6 } })
-      .then(({ data }) => active && setMatches({ category: activeCategory, listings: data.listings }))
+      .get('/listings', { params: { category: activeCategory, limit: 24, sort: 'views' } })
+      .then(({ data }) => {
+        if (!active) return;
+        const ranked = [...data.listings]
+          .sort((a, b) => (b.sellerId?.ratingAvg || 0) - (a.sellerId?.ratingAvg || 0))
+          .slice(0, 6);
+        setMatches({ category: activeCategory, listings: ranked });
+      })
       .catch(() => {});
     return () => {
       active = false;
@@ -265,7 +273,7 @@ export default function Scan() {
           >
             <div className="section-head">
               <h2 style={{ margin: 0 }}>
-                {CAT_ICON[matches.category]} More {catLabel(matches.category)} on CircuitVision
+                {CAT_ICON[matches.category]} Top {catLabel(matches.category)} matches
               </h2>
               <Link to={`/?category=${matches.category}`} className="btn ghost sm">
                 See all →
