@@ -42,6 +42,13 @@
           "photosPermission": "CircuitVision uses your photos to scan and identify a component.",
           "cameraPermission": "CircuitVision uses the camera to scan and identify a component."
         }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "CircuitVision uses the camera to scan and identify a component.",
+          "recordAudioAndroid": false
+        }
       ]
     ],
     "experiments": {
