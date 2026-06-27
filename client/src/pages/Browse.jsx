@@ -6,6 +6,7 @@ import Filters from '../components/Filters.jsx';
 import ListingCard from '../components/ListingCard.jsx';
 import Carousel from '../components/Carousel.jsx';
 import Spotlight from '../components/Spotlight.jsx';
+import ActivityTicker from '../components/ActivityTicker.jsx';
 import { CATEGORIES } from '../constants.js';
 
 // Build a deduped set of up to 5 featured listings for the hero showcase,
@@ -145,6 +146,8 @@ export default function Browse() {
           scan-free listings, mock-wallet checkout, and verified sellers.
         </p>
       </header>
+
+      <ActivityTicker />
 
       {isDefaultView && featured.length > 0 && <Spotlight items={featured} />}
 
