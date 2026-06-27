@@ -315,41 +315,97 @@ h1 {
 }
 
 /* Standalone component scanner */
+.scan-hero {
+  text-align: center;
+  padding: 0.4rem 0 0.2rem;
+}
+.scan-hero h1 {
+  margin: 0.3rem 0 0.2rem;
+}
 .scan-tabs {
   display: flex;
   gap: 0.5rem;
-  margin: 0.8rem 0 1rem;
+  margin: 0.8rem auto 1rem;
+  max-width: 360px;
 }
-.scan-verdict {
+.scan-tabs .tab-btn {
+  flex: 1;
+}
+.scan-panel {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
-  padding: 0.8rem;
-  border-radius: var(--radius-sm);
-  background: linear-gradient(160deg, rgba(76, 175, 125, 0.16), var(--surface));
-  border: 1px solid var(--border-hi);
+  gap: 0.9rem;
 }
-.scan-verdict.dim {
+.scan-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 2.2rem 1rem;
+}
+.scan-drop-icon {
+  font-size: 2.2rem;
+}
+.scan-drop.scanning {
+  border-style: solid;
+  border-color: var(--copper-bright);
+  animation: scan-breathe 1.2s ease-in-out infinite;
+}
+@keyframes scan-breathe {
+  0%, 100% { background: var(--surface); }
+  50% { background: var(--surface-hi); }
+}
+
+/* Result card */
+.scan-hit {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 1rem 1.1rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--copper-bright);
+  background: linear-gradient(160deg, rgba(201, 138, 58, 0.18), var(--surface));
+}
+.scan-hit.dim {
+  border-color: var(--border);
   background: var(--surface);
 }
+.scan-hit-icon {
+  font-size: 1.9rem;
+  line-height: 1;
+}
+.scan-hit-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
 .scan-verdict-title {
-  font-size: 1.4rem;
+  font-size: 1.35rem;
   font-weight: 800;
 }
-.scan-bar {
-  height: 7px;
-  border-radius: 4px;
-  background: var(--surface-hi);
-  overflow: hidden;
-  margin-top: 0.4rem;
+/* Circular confidence meter */
+.scan-ring {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  background: conic-gradient(var(--copper-bright) calc(var(--p) * 1%), var(--surface-hi) 0);
 }
-.scan-bar-fill {
-  height: 100%;
-  background: linear-gradient(90deg, var(--copper), var(--copper-bright));
-  transition: width 0.3s ease;
+.scan-ring span {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--surface-solid);
+  display: grid;
+  place-items: center;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  font-weight: 700;
 }
 .scan-debug {
-  margin-top: 0.7rem;
   padding: 0.6rem;
   border-radius: var(--radius-sm);
   background: #0a1410;
@@ -362,13 +418,8 @@ h1 {
   max-height: 160px;
   overflow: auto;
 }
-.scan-guide {
-  position: absolute;
-  inset: 18% 14%;
-  border: 2px dashed rgba(232, 183, 101, 0.55);
-  border-radius: var(--radius);
-  pointer-events: none;
-}
+
+/* Live camera stage */
 .scan-stage {
   position: relative;
   border-radius: var(--radius);
@@ -383,6 +434,41 @@ h1 {
   height: 100%;
   object-fit: cover;
   display: block;
+}
+/* Corner-bracket reticle (turns copper when a verdict locks) */
+.scan-reticle {
+  position: absolute;
+  inset: 16% 12%;
+  pointer-events: none;
+  transition: inset 0.3s ease;
+}
+.scan-reticle span {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  border: 2.5px solid rgba(232, 183, 101, 0.65);
+}
+.scan-reticle.locked span {
+  border-color: var(--copper-bright);
+}
+.scan-reticle .tl { top: 0; left: 0; border-right: 0; border-bottom: 0; border-top-left-radius: 7px; }
+.scan-reticle .tr { top: 0; right: 0; border-left: 0; border-bottom: 0; border-top-right-radius: 7px; }
+.scan-reticle .bl { bottom: 0; left: 0; border-right: 0; border-top: 0; border-bottom-left-radius: 7px; }
+.scan-reticle .br { bottom: 0; right: 0; border-left: 0; border-top: 0; border-bottom-right-radius: 7px; }
+/* Sweeping scan line */
+.scan-line {
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--copper-bright), transparent);
+  box-shadow: 0 0 12px var(--copper-bright);
+  animation: scan-sweep 2.6s ease-in-out infinite;
+}
+@keyframes scan-sweep {
+  0% { top: 16%; }
+  50% { top: 84%; }
+  100% { top: 16%; }
 }
 .scan-overlay {
   position: absolute;

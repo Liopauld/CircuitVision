@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { api, apiError } from '../api/client.js';
 import { gsap, useGSAP } from '../lib/gsap.js';
 import Filters from '../components/Filters.jsx';
@@ -26,8 +27,13 @@ const EMPTY = { q: '', condition: '', minPrice: '', maxPrice: '' };
 
 export default function Browse() {
   const heroRef = useRef(null);
+  const [searchParams] = useSearchParams();
   const [filters, setFilters] = useState(EMPTY);
-  const [category, setCategory] = useState('');
+  // Allow deep-linking a category (e.g. the scanner's "See all ESP32 →").
+  const [category, setCategory] = useState(() => {
+    const c = searchParams.get('category');
+    return CATEGORIES.some((x) => x.value === c) ? c : '';
+  });
   const [sort, setSort] = useState('newest');
   const [listings, setListings] = useState([]);
   const [page, setPage] = useState(1);

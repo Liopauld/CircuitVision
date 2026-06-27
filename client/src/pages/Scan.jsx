@@ -1,8 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { api, apiError } from '../api/client.js';
+import ListingCard from '../components/ListingCard.jsx';
 import { CATEGORIES } from '../constants.js';
 
 const catLabel = (v) => CATEGORIES.find((c) => c.value === v)?.label || v;
+const CAT_ICON = { esp32: '📡', raspi: '🍓', arduino: '🔌' };
 // The classifier's "not a board" class — show it as a clear message, not a label.
 const NULL_LABELS = ['null', 'none', 'background', 'unknown', 'nothing'];
 const isNullClass = (label) => !!label && NULL_LABELS.includes(String(label).toLowerCase());
@@ -14,6 +18,7 @@ export default function Scan() {
   const [mode, setMode] = useState('upload'); // 'upload' | 'live'
   const [result, setResult] = useState(null); // latest raw /api/scan response
   const [smooth, setSmooth] = useState(null); // smoothed live verdict
+  const [matches, setMatches] = useState(null); // { category, listings }
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -23,6 +28,24 @@ export default function Scan() {
   const streamRef = useRef(null);
   const inFlight = useRef(false);
   const historyRef = useRef([]);
+
+  // The currently recognized category drives the "matching listings" row.
+  const activeCategory = mode === 'live' ? smooth?.category : result?.suggestedCategory;
+
+  useEffect(() => {
+    if (!activeCategory) {
+      setMatches(null);
+      return undefined;
+    }
+    let active = true;
+    api
+      .get('/listings', { params: { category: activeCategory, limit: 6 } })
+      .then(({ data }) => active && setMatches({ category: activeCategory, listings: data.listings }))
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [activeCategory]);
 
   async function scanBlob(blob) {
     const fd = new FormData();
@@ -56,11 +79,7 @@ export default function Scan() {
     const counts = {};
     for (const c of h) if (c) counts[c] = (counts[c] || 0) + 1;
     const top = Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0];
-    if (!top) {
-      setSmooth(null);
-      return;
-    }
-    setSmooth({ category: top, votes: counts[top], total: h.length, confidence: data.confidence });
+    setSmooth(top ? { category: top, votes: counts[top], total: h.length, confidence: data.confidence } : null);
   }
 
   useEffect(() => {
@@ -106,7 +125,6 @@ export default function Scan() {
     const video = videoRef.current;
     const canvas = canvasRef.current;
     if (!video || !canvas || !video.videoWidth) return;
-    // Downscale so each frame is small/fast to send + infer.
     const scale = Math.min(1, MAX_DIM / Math.max(video.videoWidth, video.videoHeight));
     canvas.width = Math.round(video.videoWidth * scale);
     canvas.height = Math.round(video.videoHeight * scale);
@@ -124,29 +142,35 @@ export default function Scan() {
   }
 
   const pct = result ? Math.round((result.confidence || 0) * 100) : 0;
+  const hitCat = result?.suggestedCategory;
 
   return (
     <div>
-      <div className="section-head">
-        <h1 style={{ margin: 0 }}>🔍 Component scanner</h1>
-      </div>
-      <p className="muted">Identify a board — ESP32, Raspberry Pi, or Arduino — from a photo or live camera.</p>
+      <header className="scan-hero">
+        <span className="kicker">⚡ AR Vision</span>
+        <h1>Component scanner</h1>
+        <p className="muted">Point at a board or upload a photo — we'll name it and find it on CircuitVision.</p>
+      </header>
 
       <div className="scan-tabs">
         <button className={`tab-btn ${mode === 'upload' ? 'active' : ''}`} onClick={() => setMode('upload')}>
-          Upload photo
+          📷 Upload
         </button>
         <button className={`tab-btn ${mode === 'live' ? 'active' : ''}`} onClick={() => setMode('live')}>
-          Live camera
+          🎥 Live camera
         </button>
       </div>
 
       {error && <p className="error">{error}</p>}
 
       {mode === 'upload' ? (
-        <div className="card" style={{ textAlign: 'center' }}>
-          <div className="dropzone" onClick={() => fileInput.current?.click()}>
-            {busy ? 'Scanning…' : '📷 Tap to choose or take a photo'}
+        <div className="scan-panel">
+          <div
+            className={`dropzone scan-drop ${busy ? 'scanning' : ''}`}
+            onClick={() => fileInput.current?.click()}
+          >
+            <span className="scan-drop-icon">{busy ? '⏳' : '📷'}</span>
+            <span>{busy ? 'Scanning…' : 'Tap to choose or take a photo'}</span>
           </div>
           <input
             ref={fileInput}
@@ -156,49 +180,66 @@ export default function Scan() {
             style={{ display: 'none' }}
             onChange={onPick}
           />
-          {result && (
-            <div className="scan-result" style={{ marginTop: '1rem' }}>
-              {result.suggestedCategory ? (
-                <div className="scan-verdict">
-                  <span className="scan-verdict-title">{catLabel(result.suggestedCategory)}</span>
-                  <span className="muted small">{pct}% confident</span>
-                  <div className="scan-bar">
-                    <div className="scan-bar-fill" style={{ width: `${pct}%` }} />
-                  </div>
-                </div>
-              ) : (
-                <div className="scan-verdict dim">
+          <AnimatePresence mode="wait">
+            {result && (
+              <motion.div
+                key={hitCat || result.label || 'none'}
+                initial={{ opacity: 0, y: 12, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.3, ease: 'easeOut' }}
+                className={`scan-hit ${hitCat ? '' : 'dim'}`}
+              >
+                <span className="scan-hit-icon">{hitCat ? CAT_ICON[hitCat] : '🤔'}</span>
+                <div className="scan-hit-body">
                   <span className="scan-verdict-title">
-                    {isNullClass(result.label) ? 'No board detected' : 'Not recognized'}
+                    {hitCat
+                      ? catLabel(hitCat)
+                      : isNullClass(result.label)
+                        ? 'No board detected'
+                        : 'Not recognized'}
                   </span>
                   <span className="muted small">
-                    {result.error
-                      ? result.error
-                      : isNullClass(result.label)
-                        ? `${pct}% sure it isn't an ESP32 / Pi / Arduino`
-                        : result.label
-                          ? `Closest: ${result.label} (${pct}%)`
-                          : 'Not an ESP32 / Pi / Arduino'}
+                    {hitCat
+                      ? `${pct}% match · tap to rescan`
+                      : result.error
+                        ? result.error
+                        : isNullClass(result.label)
+                          ? `${pct}% sure it isn't an ESP32 / Pi / Arduino`
+                          : result.label
+                            ? `Closest: ${result.label} (${pct}%)`
+                            : 'Not an ESP32 / Pi / Arduino'}
                   </span>
                 </div>
-              )}
-              {result.detail && (
-                <pre className="scan-debug">{result.detail}</pre>
-              )}
-            </div>
-          )}
+                {hitCat && (
+                  <div className="scan-ring" style={{ '--p': pct }}>
+                    <span>{pct}%</span>
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+          {result?.detail && <pre className="scan-debug">{result.detail}</pre>}
         </div>
       ) : (
         <div className="scan-stage">
           {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
           <video ref={videoRef} className="scan-video" playsInline muted />
           <canvas ref={canvasRef} style={{ display: 'none' }} />
-          <div className="scan-guide" />
+          <div className={`scan-reticle ${smooth ? 'locked' : ''}`}>
+            <span className="tl" />
+            <span className="tr" />
+            <span className="bl" />
+            <span className="br" />
+          </div>
+          <div className="scan-line" />
           <span className="scan-live-dot" />
           <div className={`scan-overlay ${smooth ? '' : 'dim'}`}>
             {smooth ? (
               <>
-                <span className="scan-verdict-title">{catLabel(smooth.category)}</span>
+                <span className="scan-verdict-title">
+                  {CAT_ICON[smooth.category]} {catLabel(smooth.category)}
+                </span>
                 <span className="scan-overlay-sub">
                   {pct}% · {smooth.votes}/{smooth.total} frames
                 </span>
@@ -211,6 +252,33 @@ export default function Scan() {
           </div>
         </div>
       )}
+
+      <AnimatePresence mode="wait">
+        {matches?.listings?.length > 0 && (
+          <motion.div
+            key={matches.category}
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.35 }}
+            style={{ marginTop: '1.6rem' }}
+          >
+            <div className="section-head">
+              <h2 style={{ margin: 0 }}>
+                {CAT_ICON[matches.category]} More {catLabel(matches.category)} on CircuitVision
+              </h2>
+              <Link to={`/?category=${matches.category}`} className="btn ghost sm">
+                See all →
+              </Link>
+            </div>
+            <div className="grid">
+              {matches.listings.map((l, i) => (
+                <ListingCard key={l._id} listing={l} index={i} />
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
