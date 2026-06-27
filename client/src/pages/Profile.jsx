@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, apiError } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import Badges from '../components/Badges.jsx';
 import { categoryLabel, peso, LISTING_STATUSES } from '../constants.js';
 
 export default function Profile() {
@@ -99,6 +100,8 @@ export default function Profile() {
           </Link>
         </div>
       </div>
+
+      <Badges userId={user.id} />
 
       {canSell ? (
         <>

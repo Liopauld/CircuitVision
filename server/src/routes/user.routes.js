@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
   getStorefront,
+  getBadges,
   listFavorites,
   addFavorite,
   removeFavorite,
@@ -15,7 +16,8 @@ router.get('/me/favorites', requireAuth, asyncHandler(listFavorites));
 router.post('/me/favorites/:listingId', requireAuth, asyncHandler(addFavorite));
 router.delete('/me/favorites/:listingId', requireAuth, asyncHandler(removeFavorite));
 
-// Public — anyone can view a seller's storefront.
+// Public — anyone can view a seller's storefront + earned badges.
 router.get('/:id/storefront', asyncHandler(getStorefront));
+router.get('/:id/badges', asyncHandler(getBadges));
 
 export default router;

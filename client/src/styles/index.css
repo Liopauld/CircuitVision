@@ -338,6 +338,25 @@ h1 {
   align-items: center;
 }
 
+/* Achievement badges */
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+.badge-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-hi);
+  background: var(--surface-hi);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+}
+
 /* Live activity ticker */
 .ticker {
   display: flex;

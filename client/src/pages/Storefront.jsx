@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { api, apiError } from '../api/client.js';
 import ListingCard from '../components/ListingCard.jsx';
+import Badges from '../components/Badges.jsx';
 
 export default function Storefront() {
   const { id } = useParams();
@@ -61,6 +62,7 @@ export default function Storefront() {
             · Member since {memberSince}
           </p>
           {seller.bio && <p style={{ margin: '0.4rem 0 0' }}>{seller.bio}</p>}
+          <Badges userId={seller.id} />
         </div>
       </div>
 
