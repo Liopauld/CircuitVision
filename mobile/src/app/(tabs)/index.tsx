@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { api, apiError } from '@/lib/api';
 import { CATEGORIES, SORT_OPTIONS } from '@/lib/constants';
 import { ListingCard, type Listing } from '@/components/listing-card';
@@ -7,6 +8,7 @@ import { ErrorText, Loader } from '@/components/ui';
 import { colors, mono, radius } from '@/theme/colors';
 
 export default function Browse() {
+  const router = useRouter();
   const [listings, setListings] = useState<Listing[]>([]);
   const [category, setCategory] = useState('');
   const [sort, setSort] = useState<string>('newest');
@@ -67,6 +69,22 @@ export default function Browse() {
               Buy & sell, student to student.
             </Text>
           </View>
+          <Pressable
+            onPress={() => router.push('/scan')}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              paddingVertical: 11,
+              borderRadius: radius.md,
+              borderWidth: 1,
+              borderColor: colors.copperBright,
+              backgroundColor: 'rgba(201,138,58,0.14)',
+            }}>
+            <Text style={{ fontSize: 16 }}>🔍</Text>
+            <Text style={{ color: colors.copperBright, fontWeight: '700' }}>Scan a component</Text>
+          </Pressable>
           <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
             {[{ value: '', label: 'All' }, ...CATEGORIES].map((c) => {
               const active = category === c.value;

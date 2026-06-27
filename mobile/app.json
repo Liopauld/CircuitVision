@@ -35,7 +35,14 @@
           }
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "CircuitVision uses your photos to scan and identify a component.",
+          "cameraPermission": "CircuitVision uses the camera to scan and identify a component."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
