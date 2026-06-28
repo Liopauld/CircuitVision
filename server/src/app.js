@@ -11,6 +11,7 @@ import messageRoutes from './routes/message.routes.js';
 import disputeRoutes from './routes/dispute.routes.js';
 import reviewRoutes from './routes/review.routes.js';
 import scanRoutes from './routes/scan.routes.js';
+import catalogRoutes from './routes/catalog.routes.js';
 import activityRoutes from './routes/activity.routes.js';
 import notificationRoutes from './routes/notification.routes.js';
 import adminRoutes from './routes/admin.routes.js';
@@ -49,6 +50,7 @@ export function createApp() {
   app.use('/api/disputes', disputeRoutes);
   app.use('/api/reviews', reviewRoutes);
   app.use('/api/scan', scanRoutes);
+  app.use('/api/catalog', catalogRoutes);
   app.use('/api/activity', activityRoutes);
   app.use('/api/notifications', notificationRoutes);
   app.use('/api/admin', adminRoutes);
