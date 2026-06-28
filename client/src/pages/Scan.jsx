@@ -21,6 +21,8 @@ export default function Scan() {
   const [matches, setMatches] = useState(null); // { category, listings }
   const [catalog, setCatalog] = useState([]); // reference components for the recognized category
   const [picked, setPicked] = useState(null); // the exact board the user selected
+  const [preview, setPreview] = useState(null); // object URL of the uploaded image
+  const [dragging, setDragging] = useState(false); // drag-and-drop hover state
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -80,6 +82,9 @@ export default function Scan() {
     };
   }, [activeCategory]);
 
+  // Free the object URL behind the upload preview when it changes or unmounts.
+  useEffect(() => () => preview && URL.revokeObjectURL(preview), [preview]);
+
   async function scanBlob(blob) {
     const fd = new FormData();
     fd.append('image', blob, 'scan.jpg');
@@ -87,13 +92,18 @@ export default function Scan() {
     return data;
   }
 
-  async function onPick(e) {
-    const file = e.target.files?.[0];
-    e.target.value = '';
+  // Shared by the file picker and drag-and-drop: show the image immediately,
+  // then send it to the scanner.
+  async function handleFile(file) {
     if (!file) return;
-    setBusy(true);
+    if (!file.type.startsWith('image/')) {
+      setError('That doesn’t look like an image — try a JPG or PNG.');
+      return;
+    }
     setError('');
+    setPreview(URL.createObjectURL(file));
     setResult(null);
+    setBusy(true);
     try {
       setResult(await scanBlob(file));
     } catch (err) {
@@ -101,6 +111,18 @@ export default function Scan() {
     } finally {
       setBusy(false);
     }
+  }
+
+  function onPick(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    handleFile(file);
+  }
+
+  function onDrop(e) {
+    e.preventDefault();
+    setDragging(false);
+    handleFile(e.dataTransfer.files?.[0]);
   }
 
   // Majority-vote smoothing so the live verdict doesn't flicker frame to frame.
@@ -122,6 +144,7 @@ export default function Scan() {
     setResult(null);
     setSmooth(null);
     setError('');
+    setPreview(null);
     historyRef.current = [];
 
     (async () => {
@@ -182,7 +205,7 @@ export default function Scan() {
       <header className="scan-hero">
         <span className="kicker">⚡ AR Vision</span>
         <h1>Component scanner</h1>
-        <p className="muted">Point at a board or upload a photo — we'll name it and find it on CircuitVision.</p>
+        <p className="muted">Snap or upload a board — we'll identify it, show its specs, and find it on CircuitVision.</p>
       </header>
 
       <div className="scan-tabs">
@@ -198,13 +221,73 @@ export default function Scan() {
 
       {mode === 'upload' ? (
         <div className="scan-panel">
-          <div
-            className={`dropzone scan-drop ${busy ? 'scanning' : ''}`}
-            onClick={() => fileInput.current?.click()}
-          >
-            <span className="scan-drop-icon">{busy ? '⏳' : '📷'}</span>
-            <span>{busy ? 'Scanning…' : 'Tap to choose or take a photo'}</span>
-          </div>
+          {preview ? (
+            <div className="scan-stage scan-shot-stage">
+              <img className="scan-shot" src={preview} alt="Component being scanned" />
+              <div className={`scan-reticle ${hitCat ? 'locked' : ''}`}>
+                <span className="tl" />
+                <span className="tr" />
+                <span className="bl" />
+                <span className="br" />
+              </div>
+              {busy && <div className="scan-line" />}
+              <button type="button" className="scan-redo" onClick={() => fileInput.current?.click()}>
+                ↻ New photo
+              </button>
+              <div className={`scan-overlay ${busy || !hitCat ? 'dim' : ''}`}>
+                {busy ? (
+                  <div className="scan-analyzing">
+                    <span className="scan-spinner" />
+                    <span className="scan-overlay-sub">Analyzing the board…</span>
+                  </div>
+                ) : (
+                  <div className="scan-verdict-row">
+                    <span className="scan-hit-icon">{hitCat ? CAT_ICON[hitCat] : '🤔'}</span>
+                    <div className="scan-hit-body">
+                      <span className="scan-verdict-title">
+                        {hitCat
+                          ? catLabel(hitCat)
+                          : isNullClass(result?.label)
+                            ? 'No board detected'
+                            : 'Not recognized'}
+                      </span>
+                      <span className="scan-overlay-sub">
+                        {hitCat
+                          ? `${pct}% match`
+                          : result?.error
+                            ? result.error
+                            : isNullClass(result?.label)
+                              ? "Doesn't look like an ESP32 / Pi / Arduino"
+                              : result?.label
+                                ? `Closest: ${result.label} (${pct}%)`
+                                : 'Not an ESP32 / Pi / Arduino'}
+                      </span>
+                    </div>
+                    {hitCat && (
+                      <div className="scan-ring" style={{ '--p': pct }}>
+                        <span>{pct}%</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div
+              className={`dropzone scan-drop ${dragging ? 'dragover' : ''}`}
+              onClick={() => fileInput.current?.click()}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragging(true);
+              }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={onDrop}
+            >
+              <span className="scan-drop-icon">📷</span>
+              <span>Tap to choose or take a photo</span>
+              <span className="muted small">or drag &amp; drop an image here</span>
+            </div>
+          )}
           <input
             ref={fileInput}
             type="file"
@@ -213,45 +296,6 @@ export default function Scan() {
             style={{ display: 'none' }}
             onChange={onPick}
           />
-          <AnimatePresence mode="wait">
-            {result && (
-              <motion.div
-                key={hitCat || result.label || 'none'}
-                initial={{ opacity: 0, y: 12, scale: 0.97 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.3, ease: 'easeOut' }}
-                className={`scan-hit ${hitCat ? '' : 'dim'}`}
-              >
-                <span className="scan-hit-icon">{hitCat ? CAT_ICON[hitCat] : '🤔'}</span>
-                <div className="scan-hit-body">
-                  <span className="scan-verdict-title">
-                    {hitCat
-                      ? catLabel(hitCat)
-                      : isNullClass(result.label)
-                        ? 'No board detected'
-                        : 'Not recognized'}
-                  </span>
-                  <span className="muted small">
-                    {hitCat
-                      ? `${pct}% match · tap to rescan`
-                      : result.error
-                        ? result.error
-                        : isNullClass(result.label)
-                          ? `${pct}% sure it isn't an ESP32 / Pi / Arduino`
-                          : result.label
-                            ? `Closest: ${result.label} (${pct}%)`
-                            : 'Not an ESP32 / Pi / Arduino'}
-                  </span>
-                </div>
-                {hitCat && (
-                  <div className="scan-ring" style={{ '--p': pct }}>
-                    <span>{pct}%</span>
-                  </div>
-                )}
-              </motion.div>
-            )}
-          </AnimatePresence>
           {result?.detail && <pre className="scan-debug">{result.detail}</pre>}
         </div>
       ) : (
@@ -334,6 +378,15 @@ export default function Scan() {
                       </li>
                     ))}
                   </ul>
+                  <a
+                    className="btn ghost sm"
+                    href={`https://www.google.com/search?q=${encodeURIComponent(`${picked.name} datasheet`)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ marginTop: '0.7rem', alignSelf: 'flex-start' }}
+                  >
+                    Find datasheet ↗
+                  </a>
                 </motion.div>
               )}
             </AnimatePresence>
