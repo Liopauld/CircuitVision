@@ -96,10 +96,9 @@ export async function openConversation(req, res) {
 
 // GET /api/messages/conversations/:id — thread + messages; marks them read for the caller.
 export async function getConversation(req, res) {
-  const conversation = await Conversation.findById(req.params.id).populate(
-    'participants',
-    'name role'
-  );
+  const conversation = await Conversation.findById(req.params.id)
+    .populate('participants', 'name role')
+    .populate('listingId', 'title price cloudinaryUrl status category');
   if (!conversation) throw new ApiError(404, 'Conversation not found.');
   assertParticipant(conversation, req.user.id);
 
@@ -118,12 +117,29 @@ export async function getConversation(req, res) {
   const other =
     conversation.participants.find((p) => String(p._id) !== req.user.id) || null;
 
+  // The anchored listing, if any, as a compact preview the client renders as a
+  // product reference card in the thread. `listingId` is populated above; it may
+  // be null if the conversation was never anchored or the listing was removed.
+  const listingDoc = conversation.listingId;
+  const listing =
+    listingDoc && listingDoc._id
+      ? {
+          _id: listingDoc._id,
+          title: listingDoc.title,
+          price: listingDoc.price,
+          status: listingDoc.status,
+          category: listingDoc.category,
+          image: listingDoc.cloudinaryUrl?.[0] || null,
+        }
+      : null;
+
   res.json({
     conversation: {
       id: conversation._id,
       other,
-      listingId: conversation.listingId,
+      listingId: listing?._id || conversation.listingId || null,
       listingTitle: conversation.listingTitle,
+      listing,
     },
     messages,
   });

@@ -3,6 +3,10 @@ import { useParams, Link } from 'react-router-dom';
 import { api, apiError } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useMessages } from '../context/MessagesContext.jsx';
+import { peso, categoryLabel } from '../constants.js';
+
+const REF_PLACEHOLDER =
+  'https://placehold.co/120x120/0a1a13/e8b765?text=No+Image';
 
 export default function Conversation() {
   const { id } = useParams();
@@ -74,16 +78,40 @@ export default function Conversation() {
         </span>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div className="conv-name">{conversation.other?.name || 'Unknown'}</div>
-          {conversation.listingId && (
-            <Link
-              to={`/listings/${conversation.listingId}`}
-              className="muted small"
-            >
-              {conversation.listingTitle || 'View listing'}
-            </Link>
+          {conversation.other?.role && (
+            <span className="muted small">{conversation.other.role}</span>
           )}
         </div>
       </div>
+
+      {conversation.listing && (
+        <Link
+          to={`/listings/${conversation.listing._id}`}
+          className="thread-ref"
+        >
+          <img
+            className="thread-ref-img"
+            src={conversation.listing.image || REF_PLACEHOLDER}
+            alt={conversation.listing.title}
+          />
+          <div className="thread-ref-body">
+            <span className="thread-ref-label">
+              📦 About this listing
+            </span>
+            <span className="thread-ref-title">
+              {conversation.listing.title}
+            </span>
+            <span className="thread-ref-meta">
+              {peso(conversation.listing.price)} ·{' '}
+              {categoryLabel(conversation.listing.category)}
+              {conversation.listing.status !== 'available' && (
+                <> · {conversation.listing.status}</>
+              )}
+            </span>
+          </div>
+          <span className="thread-ref-go">View →</span>
+        </Link>
+      )}
 
       <div className="bubbles">
         {messages.length === 0 ? (
