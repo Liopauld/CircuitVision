@@ -19,9 +19,7 @@ export default function Scan() {
   const [result, setResult] = useState(null); // latest raw /api/scan response
   const [smooth, setSmooth] = useState(null); // smoothed live verdict
   const [matches, setMatches] = useState(null); // { category, listings }
-  const [allComponents, setAllComponents] = useState([]); // full reference catalog
-  const [query, setQuery] = useState(''); // catalog search box
-  const [catFilter, setCatFilter] = useState(null); // null = all categories
+  const [catalog, setCatalog] = useState([]); // reference components for the recognized category
   const [picked, setPicked] = useState(null); // the exact board the user selected
   const [preview, setPreview] = useState(null); // object URL of the uploaded image
   const [dragging, setDragging] = useState(false); // drag-and-drop hover state
@@ -61,40 +59,28 @@ export default function Scan() {
     };
   }, [activeCategory]);
 
-  // Pull the whole reference catalog once so the user can browse + search every
-  // board and read its specs — independent of a scan. Free, no inference.
+  // Pull the reference catalog for the recognized category so the user can pick
+  // the exact board and see its specs — free, no extra inference, pure lookup.
   useEffect(() => {
+    if (!activeCategory) {
+      setCatalog([]);
+      setPicked(null);
+      return undefined;
+    }
     let active = true;
+    setPicked(null);
     api
-      .get('/catalog')
+      .get('/catalog', { params: { category: activeCategory } })
       .then(({ data }) => {
-        if (active) setAllComponents(data.components || []);
+        if (active) setCatalog(data.components || []);
       })
       .catch(() => {
-        if (active) setAllComponents([]);
+        if (active) setCatalog([]);
       });
     return () => {
       active = false;
     };
-  }, []);
-
-  // When a scan recognizes a category, focus the reference browser on it.
-  useEffect(() => {
-    if (activeCategory) {
-      setCatFilter(activeCategory);
-      setPicked(null);
-    }
   }, [activeCategory]);
-
-  // Components shown in the reference browser: filtered by the active category
-  // chip and the search box (matches name, summary, or printed aliases).
-  const q = query.trim().toLowerCase();
-  const browseComponents = allComponents.filter((c) => {
-    if (catFilter && c.category !== catFilter) return false;
-    if (!q) return true;
-    const hay = `${c.name} ${c.summary || ''} ${(c.aliases || []).join(' ')}`.toLowerCase();
-    return hay.includes(q);
-  });
 
   // Free the object URL behind the upload preview when it changes or unmounts.
   useEffect(() => () => preview && URL.revokeObjectURL(preview), [preview]);
@@ -344,94 +330,69 @@ export default function Scan() {
         </div>
       )}
 
-      {allComponents.length > 0 && (
-        <div style={{ marginTop: '1.6rem' }}>
-          <div className="section-head">
-            <h2 style={{ margin: 0 }}>📖 Component reference</h2>
-          </div>
-          <p className="muted small" style={{ marginTop: '-0.4rem' }}>
-            {activeCategory
-              ? `Recognized as ${catLabel(activeCategory)} — search or tap a board for its specs.`
-              : 'Search the catalog or filter by family, then tap a board to see its specs.'}
-          </p>
-
-          <input
-            type="search"
-            className="scan-search"
-            placeholder="Search boards — e.g. ESP32-CAM, Pico, Mega…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-
-          <div className="cat-chips" style={{ marginTop: '0.8rem' }}>
-            <button
-              className={`chip ${!catFilter ? 'active' : ''}`}
-              onClick={() => setCatFilter(null)}
-            >
-              All
-            </button>
-            {CATEGORIES.map((c) => (
-              <button
-                key={c.value}
-                className={`chip ${catFilter === c.value ? 'active' : ''}`}
-                onClick={() => setCatFilter(c.value)}
-              >
-                {CAT_ICON[c.value]} {c.label}
-              </button>
-            ))}
-          </div>
-
-          {browseComponents.length === 0 ? (
-            <p className="muted small">No boards match “{query}”.</p>
-          ) : (
+      <AnimatePresence mode="wait">
+        {activeCategory && catalog.length > 0 && (
+          <motion.div
+            key={`cat-${activeCategory}`}
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.35 }}
+            style={{ marginTop: '1.6rem' }}
+          >
+            <div className="section-head">
+              <h2 style={{ margin: 0 }}>{CAT_ICON[activeCategory]} Which board is it?</h2>
+            </div>
+            <p className="muted small" style={{ marginTop: '-0.4rem' }}>
+              Recognized as {catLabel(activeCategory)}. Tap the closest match for its specs.
+            </p>
             <div className="cat-chips">
-              {browseComponents.map((c) => (
+              {catalog.map((c) => (
                 <button
                   key={c.key}
                   className={`chip ${picked?.key === c.key ? 'active' : ''}`}
-                  onClick={() => setPicked(picked?.key === c.key ? null : c)}
+                  onClick={() => setPicked(c)}
                 >
                   {c.name}
                 </button>
               ))}
             </div>
-          )}
-
-          <AnimatePresence mode="wait">
-            {picked && (
-              <motion.div
-                key={picked.key}
-                initial={{ opacity: 0, y: 10, scale: 0.98 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.25, ease: 'easeOut' }}
-                className="scan-hit"
-                style={{ flexDirection: 'column', alignItems: 'stretch', gap: '0.3rem' }}
-              >
-                <span className="scan-verdict-title">{picked.name}</span>
-                {picked.summary && <span className="muted small">{picked.summary}</span>}
-                <ul className="specs" style={{ marginTop: '0.6rem' }}>
-                  {Object.entries(picked.specs).map(([k, v]) => (
-                    <li key={k}>
-                      <span>{k}</span>
-                      <span>{v}</span>
-                    </li>
-                  ))}
-                </ul>
-                <a
-                  className="btn ghost sm"
-                  href={`https://www.google.com/search?q=${encodeURIComponent(`${picked.name} datasheet`)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ marginTop: '0.7rem', alignSelf: 'flex-start' }}
+            <AnimatePresence mode="wait">
+              {picked && (
+                <motion.div
+                  key={picked.key}
+                  initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.25, ease: 'easeOut' }}
+                  className="scan-hit"
+                  style={{ flexDirection: 'column', alignItems: 'stretch', gap: '0.3rem' }}
                 >
-                  Find datasheet ↗
-                </a>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      )}
+                  <span className="scan-verdict-title">{picked.name}</span>
+                  {picked.summary && <span className="muted small">{picked.summary}</span>}
+                  <ul className="specs" style={{ marginTop: '0.6rem' }}>
+                    {Object.entries(picked.specs).map(([k, v]) => (
+                      <li key={k}>
+                        <span>{k}</span>
+                        <span>{v}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <a
+                    className="btn ghost sm"
+                    href={`https://www.google.com/search?q=${encodeURIComponent(`${picked.name} datasheet`)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ marginTop: '0.7rem', alignSelf: 'flex-start' }}
+                  >
+                    Find datasheet ↗
+                  </a>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence mode="wait">
         {matches?.listings?.length > 0 && (

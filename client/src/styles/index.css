@@ -948,10 +948,6 @@ label {
   flex-wrap: wrap;
   margin-bottom: 1rem;
 }
-.scan-search {
-  width: 100%;
-  margin: 0;
-}
 .chip {
   padding: 0.4rem 0.9rem;
   border-radius: 999px;
@@ -1469,6 +1465,12 @@ label {
   border-radius: 4px;
 }
 @media (max-width: 640px) {
+  /* On phones the search box gets its own full-width row so it reads as a real
+     search bar instead of sharing a cramped line with the filter dropdowns. */
+  .filters input[type='search'] {
+    flex: 1 0 100%;
+    min-width: 0;
+  }
   .spotlight-slide {
     grid-template-columns: 1fr;
   }
